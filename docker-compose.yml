@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+  rag-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME:-mistral_papers}
+      - QDRANT_USER_COLLECTION_NAME=${QDRANT_USER_COLLECTION_NAME:-user_data}
+      - GROQ_MODEL_NAME=${GROQ_MODEL_NAME:-llama-3.1-70b-versatile}
+      - EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL_NAME:-text-embedding-3-small}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    networks:
+      - rag-network
+
+networks:
+  rag-network:
+    driver: bridge 

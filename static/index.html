@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS - Assistente Pessoal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-top: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            border-radius: 15px 15px 2px 15px;
+            padding: 10px 15px;
+            margin: 5px 0;
+            max-width: 80%;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .assistant-message {
+            background-color: #e9ecef;
+            color: #343a40;
+            border-radius: 15px 15px 15px 2px;
+            padding: 10px 15px;
+            margin: 5px 0;
+            max-width: 80%;
+        }
+        .system-message {
+            background-color: #6c757d;
+            color: white;
+            border-radius: 10px;
+            padding: 5px 10px;
+            margin: 5px 0;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #343a40;
+        }
+        .content-area {
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .badge-button {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">JARVIS</div>
+            <p class="lead">Assistente Pessoal Inteligente</p>
+        </div>
+
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="jarvis-tab" data-bs-toggle="tab" data-bs-target="#jarvis" type="button" role="tab" aria-controls="jarvis" aria-selected="true">JARVIS</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config" type="button" role="tab" aria-controls="config" aria-selected="false">Configurações</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            <!-- JARVIS Tab -->
+            <div class="tab-pane fade show active" id="jarvis" role="tabpanel" aria-labelledby="jarvis-tab">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="userIdInput" placeholder="UUID do usuário">
+                            <label for="userIdInput">UUID do usuário no Supabase</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="userNameInput" placeholder="Nome do usuário">
+                            <label for="userNameInput">Nome do usuário</label>
+                        </div>
+                        <button class="btn btn-primary" id="loadUserDataBtn">Carregar Dados do Usuário</button>
+                        <div id="loadingUserData" class="d-none">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            Carregando dados...
+                        </div>
+                        <div id="userDataInfo" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <div class="chat-container" id="jarvisChat">
+                    <div class="system-message">Bem-vindo ao assistente JARVIS! Digite sua pergunta abaixo.</div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="jarvisInput" placeholder="Digite sua pergunta...">
+                            <button class="btn btn-primary" type="button" id="jarvisSendBtn">
+                                Enviar
+                            </button>
+                        </div>
+                        <div id="loadingJarvis" class="d-none">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            Processando...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="d-flex justify-content-start gap-2 mb-2">
+                            <button class="btn btn-sm btn-outline-secondary" id="toggleJarvisPrompt">Mostrar Prompt</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="clearJarvisChat">Limpar Conversa</button>
+                        </div>
+                        <div id="jarvisPromptContainer" class="d-none">
+                            <h5>Último Prompt</h5>
+                            <pre id="jarvisPrompt"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configurações Tab -->
+            <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="config-tab">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="apiUrl" value="http://localhost:8000" placeholder="URL da API">
+                            <label for="apiUrl">URL da API</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="number" class="form-control" id="kValue" value="3" placeholder="Valor K (número de documentos)">
+                            <label for="kValue">Valor K (número de documentos)</label>
+                        </div>
+                        <button class="btn btn-success" id="saveConfigBtn">Salvar Configurações</button>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <h4>Status da API</h4>
+                        <button class="btn btn-info" id="checkStatusBtn">Verificar Status</button>
+                        <div id="apiStatus" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurações
+            let apiUrl = 'http://localhost:8000';
+            let kValue = 3;
+            let jarvisConversationHistory = [];
+            let userId = '';
+            let userName = '';
+            let formOfAddress = '';
+
+            // Elementos da UI
+            const userIdInput = document.getElementById('userIdInput');
+            const userNameInput = document.getElementById('userNameInput');
+            const loadUserDataBtn = document.getElementById('loadUserDataBtn');
+            const loadingUserData = document.getElementById('loadingUserData');
+            const userDataInfo = document.getElementById('userDataInfo');
+            const jarvisChat = document.getElementById('jarvisChat');
+            const jarvisInput = document.getElementById('jarvisInput');
+            const jarvisSendBtn = document.getElementById('jarvisSendBtn');
+            const loadingJarvis = document.getElementById('loadingJarvis');
+            const jarvisPrompt = document.getElementById('jarvisPrompt');
+            const jarvisPromptContainer = document.getElementById('jarvisPromptContainer');
+            const toggleJarvisPrompt = document.getElementById('toggleJarvisPrompt');
+            const clearJarvisChat = document.getElementById('clearJarvisChat');
+
+            const apiUrlInput = document.getElementById('apiUrl');
+            const kValueInput = document.getElementById('kValue');
+            const saveConfigBtn = document.getElementById('saveConfigBtn');
+            const checkStatusBtn = document.getElementById('checkStatusBtn');
+            const apiStatus = document.getElementById('apiStatus');
+
+            // Carregar configurações
+            if (localStorage.getItem('ragJarvisConfig')) {
+                const config = JSON.parse(localStorage.getItem('ragJarvisConfig'));
+                apiUrl = config.apiUrl || apiUrl;
+                kValue = config.kValue || kValue;
+                userId = config.userId || '';
+                userName = config.userName || '';
+                
+                apiUrlInput.value = apiUrl;
+                kValueInput.value = kValue;
+                userIdInput.value = userId;
+                userNameInput.value = userName;
+            }
+
+            // Salvar configurações
+            saveConfigBtn.addEventListener('click', function() {
+                apiUrl = apiUrlInput.value;
+                kValue = parseInt(kValueInput.value);
+                
+                localStorage.setItem('ragJarvisConfig', JSON.stringify({
+                    apiUrl,
+                    kValue,
+                    userId: userIdInput.value,
+                    userName: userNameInput.value
+                }));
+                
+                alert('Configurações salvas com sucesso!');
+            });
+
+            // Verificar status da API
+            checkStatusBtn.addEventListener('click', function() {
+                apiStatus.innerHTML = '<div class="alert alert-info">Verificando status...</div>';
+                
+                fetch(`${apiUrl}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        apiStatus.innerHTML = `<div class="alert alert-success">API está online: ${data.message}</div>`;
+                    })
+                    .catch(error => {
+                        apiStatus.innerHTML = `<div class="alert alert-danger">Erro ao conectar à API: ${error.message}</div>`;
+                    });
+            });
+
+            // Carregar dados do usuário
+            loadUserDataBtn.addEventListener('click', function() {
+                userId = userIdInput.value.trim();
+                userName = userNameInput.value.trim();
+                
+                if (!userId) {
+                    userDataInfo.innerHTML = '<div class="alert alert-danger">Informe o UUID do usuário</div>';
+                    return;
+                }
+                
+                if (!userName) {
+                    userDataInfo.innerHTML = '<div class="alert alert-danger">Informe o nome do usuário</div>';
+                    return;
+                }
+                
+                loadingUserData.classList.remove('d-none');
+                userDataInfo.innerHTML = '';
+                
+                fetch(`${apiUrl}/api/load-user-data`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        user_id: userId, 
+                        user_name: userName 
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadingUserData.classList.add('d-none');
+                    
+                    if (data.status === 'success') {
+                        if (data.user_data) {
+                            formOfAddress = data.user_data.form_of_address || '';
+                            
+                            let infoHtml = '<div class="alert alert-success">';
+                            infoHtml += `<strong>Dados carregados com sucesso!</strong><br>`;
+                            
+                            if (formOfAddress) {
+                                infoHtml += `Tratamento: ${formOfAddress}<br>`;
+                            }
+                            
+                            const projectsCount = (data.user_data.projects || []).length;
+                            const tasksCount = (data.user_data.tasks || []).length;
+                            
+                            infoHtml += `Projetos: ${projectsCount}<br>`;
+                            infoHtml += `Tarefas: ${tasksCount}<br>`;
+                            infoHtml += '</div>';
+                            
+                            userDataInfo.innerHTML = infoHtml;
+                            
+                            // Adicionar mensagem de boas-vindas
+                            addMessageToChat(jarvisChat, 'system', `Dados do usuário carregados. Você está pronto para conversar com JARVIS!`);
+                            
+                            localStorage.setItem('ragJarvisConfig', JSON.stringify({
+                                apiUrl,
+                                kValue,
+                                userId,
+                                userName
+                            }));
+                        } else {
+                            userDataInfo.innerHTML = '<div class="alert alert-warning">Dados do usuário carregados, mas não foram recebidos detalhes.</div>';
+                        }
+                    } else {
+                        userDataInfo.innerHTML = `<div class="alert alert-danger">Erro: ${data.message || 'Falha ao carregar dados do usuário'}</div>`;
+                    }
+                })
+                .catch(error => {
+                    loadingUserData.classList.add('d-none');
+                    userDataInfo.innerHTML = `<div class="alert alert-danger">Erro: ${error.message}</div>`;
+                });
+            });
+
+            // Consulta JARVIS
+            jarvisSendBtn.addEventListener('click', sendJarvisMessage);
+            jarvisInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendJarvisMessage();
+                }
+            });
+
+            function sendJarvisMessage() {
+                const query = jarvisInput.value.trim();
+                
+                if (!query) return;
+                if (!userId) {
+                    addMessageToChat(jarvisChat, 'system', 'Por favor, carregue os dados do usuário primeiro.');
+                    return;
+                }
+                
+                addMessageToChat(jarvisChat, 'user', query);
+                jarvisInput.value = '';
+                loadingJarvis.classList.remove('d-none');
+                
+                // Adicionar à história de conversação
+                jarvisConversationHistory.push({
+                    role: 'user',
+                    content: query
+                });
+                
+                fetch(`${apiUrl}/api/user-query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        user_name: userName,
+                        query: query,
+                        conversation_history: jarvisConversationHistory,
+                        k: kValue
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadingJarvis.classList.add('d-none');
+                    
+                    const answer = data.answer || 'Desculpe, não consegui processar sua pergunta.';
+                    addMessageToChat(jarvisChat, 'assistant', answer);
+                    
+                    // Adicionar à história de conversação
+                    jarvisConversationHistory.push({
+                        role: 'assistant',
+                        content: answer
+                    });
+                    
+                    // Atualizar prompt
+                    if (data.augmented_prompt) {
+                        jarvisPrompt.textContent = data.augmented_prompt;
+                    }
+                    
+                    // Salvar história no localStorage
+                    localStorage.setItem('jarvisConversationHistory', JSON.stringify(jarvisConversationHistory));
+                })
+                .catch(error => {
+                    loadingJarvis.classList.add('d-none');
+                    addMessageToChat(jarvisChat, 'system', `Erro: ${error.message}`);
+                });
+            }
+
+            // Utilitários
+            function addMessageToChat(chatContainer, role, message) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add(role + '-message');
+                messageDiv.innerText = message;
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            // Botões de interface
+            toggleJarvisPrompt.addEventListener('click', function() {
+                jarvisPromptContainer.classList.toggle('d-none');
+                toggleJarvisPrompt.textContent = jarvisPromptContainer.classList.contains('d-none') ? 'Mostrar Prompt' : 'Ocultar Prompt';
+            });
+
+            clearJarvisChat.addEventListener('click', function() {
+                jarvisChat.innerHTML = '<div class="system-message">Conversa limpa. Digite sua pergunta abaixo.</div>';
+                jarvisConversationHistory = [];
+                localStorage.removeItem('jarvisConversationHistory');
+            });
+
+            // Carregar histórico salvo
+            if (localStorage.getItem('jarvisConversationHistory')) {
+                try {
+                    jarvisConversationHistory = JSON.parse(localStorage.getItem('jarvisConversationHistory'));
+                    
+                    // Renderizar mensagens
+                    jarvisChat.innerHTML = '<div class="system-message">Histórico de conversa carregado.</div>';
+                    
+                    jarvisConversationHistory.forEach(entry => {
+                        addMessageToChat(jarvisChat, entry.role, entry.content);
+                    });
+                } catch (e) {
+                    console.error('Erro ao carregar histórico JARVIS:', e);
+                }
+            }
+
+            // Verificar status inicial
+            checkStatusBtn.click();
+        });
+    </script>
+</body>
+</html> 
