@@ -11,4 +11,5 @@ qdrant-client>=1.7.0
 tiktoken>=0.5.2
 pydantic>=2.4.2,<3.0.0
 supabase>=2.0.0
-aiofiles>=23.2.1 
+aiofiles>=23.2.1
+pytz>=2024.1 

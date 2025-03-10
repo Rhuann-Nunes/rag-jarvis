@@ -2,6 +2,7 @@ import os
 import json
 from typing import Dict, List, Optional
 from datetime import datetime
+import pytz
 import qdrant_client
 from qdrant_client.http import models
 from dotenv import load_dotenv
@@ -21,6 +22,9 @@ class UserDataService:
         
         self.collection_name = os.getenv("QDRANT_USER_COLLECTION_NAME", "user_data")
         self.supabase_client = SupabaseClient()
+        
+        # Initialize Brazil timezone
+        self.brazil_tz = pytz.timezone('America/Sao_Paulo')
         
         # Initialize in-memory or external Qdrant client
         if use_in_memory:
@@ -50,12 +54,28 @@ class UserDataService:
                 )
             )
     
+    def get_current_datetime_br(self) -> str:
+        """Get current datetime in Brazil timezone"""
+        utc_now = datetime.now(pytz.UTC)
+        br_now = utc_now.astimezone(self.brazil_tz)
+        return br_now.strftime("%d/%m/%Y %H:%M")
+    
     def _convert_to_documents(self, user_data: Dict) -> List[Document]:
         """Convert user data to documents for the vector store"""
         documents = []
         user_id = user_data.get("user_id", "")
         user_name = user_data.get("user_name", "")
         form_of_address = user_data.get("form_of_address", "")
+        
+        # Add current datetime information
+        current_datetime = self.get_current_datetime_br()
+        datetime_info = {
+            "type": "datetime_info",
+            "user_id": user_id,
+            "current_datetime": current_datetime
+        }
+        datetime_text = f"Data e hora atual: {current_datetime}"
+        documents.append(Document(page_content=datetime_text, metadata=datetime_info))
         
         # Add a document with basic user information
         base_info = {
@@ -101,9 +121,14 @@ class UserDataService:
             due_date_str = ""
             if task.get("due_date"):
                 try:
-                    due_date = datetime.fromisoformat(task.get("due_date").replace("Z", "+00:00"))
-                    due_date_str = due_date.strftime("%d/%m/%Y")
-                except:
+                    # Parse the UTC date
+                    utc_date = datetime.fromisoformat(task.get("due_date").replace('Z', '+00:00'))
+                    # Convert to Brazil timezone
+                    br_date = utc_date.astimezone(self.brazil_tz)
+                    # Format date and time in Brazilian format
+                    due_date_str = br_date.strftime("%d/%m/%Y %H:%M")
+                except Exception as e:
+                    print(f"Erro ao converter data: {e}")
                     due_date_str = task.get("due_date", "")
             
             status = "Concluída" if task.get("completed", False) else "Pendente"
