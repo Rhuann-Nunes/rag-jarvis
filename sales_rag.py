@@ -29,15 +29,29 @@ O JARVIS é um assistente pessoal de produtividade alimentado por inteligência 
 
 ### 🔍 Entendendo Linguagem Natural
 
-O JARVIS utiliza modelos avançados de IA (GPT-4o) para compreender suas tarefas exatamente como você as descreve.
+O JARVIS utiliza modelos avançados de IA (GPT-4o) para compreender suas tarefas exatamente como você as descreve:
+
+- **Simplesmente digite ou fale**: "Reunião com José na terça-feira às 15h sobre o projeto Alfa #Trabalho/Reuniões"
+- **O JARVIS extrai automaticamente**:
+  - Título: "Reunião com José sobre o projeto Alfa"
+  - Data: Próxima terça-feira
+  - Horário: 15:00
+  - Projeto: Trabalho
+  - Seção: Reuniões
 
 ### 📅 Gestão Inteligente de Tarefas
 
-O sistema organiza suas tarefas automaticamente com base em datas inteligentes, recorrências e categorização.
+O sistema organiza suas tarefas automaticamente com base em:
+
+- **Datas inteligentes**: reconhece expressões como "amanhã", "próxima semana", "início do mês"
+- **Recorrências**: configura automaticamente tarefas para se repetirem quando você diz "todos os dias", "toda segunda", "mensalmente"
+- **Categorização automática**: usa hashtags (#Projeto) e barras (/Seção) para organizar suas tarefas
 
 ### 🔔 Notificações Que Funcionam
 
-Alertas no dispositivo, notificações via WhatsApp e priorização inteligente.
+- **Alertas no dispositivo**: receba lembretes contextuais no momento certo
+- **Notificações via WhatsApp**: mantenha-se informado mesmo quando não estiver usando o aplicativo
+- **Priorização inteligente**: o sistema aprende quais tarefas são mais importantes para você
 
 ### 🤖 JARVIS no WhatsApp
 
@@ -53,8 +67,8 @@ Autenticação segura, armazenamento criptografado e controle total dos dados.
 
 ## Planos Acessíveis
 
-- 7 Dias Grátis – Experimente todas as funcionalidades sem cartão de crédito
-- Plano Anual – Apenas R$ 50,00 por um ano inteiro de produtividade transformadora"""
+- **7 Dias Grátis** – Experimente todas as funcionalidades sem cartão de crédito
+- **Plano Anual** – Apenas R$ 50,00 por um ano inteiro de produtividade transformadora """
 
 class SalesRAGService:
     """Serviço RAG especializado em vendas do JARVIS"""
@@ -189,14 +203,7 @@ ABORDAGEM DE VENDAS:
 - GRADUALMENTE: Revele informações em pequenas doses, não tudo de uma vez
 
 COMPARTILHE O LINK:
-- Sempre compartilhe o link da plataforma: https://www.appjarvis.com.br/
-- Momentos ideais para compartilhar o link:
-  1. Quando o cliente mostrar interesse em conhecer o produto
-  2. Logo após descrever um benefício que desperte curiosidade
-  3. Quando o cliente perguntar como acessar ou se cadastrar
-  4. No final da conversa como call-to-action
-- Formate o link de forma destacada com emojis: 🚀 https://www.appjarvis.com.br/
-- Reforçe que o cadastro gratuito leva menos de 1 minuto
+- Compartilhe o link quando identificar interesse na aquisição ou teste: https://www.appjarvis.com.br/
 
 GATILHOS DE URGÊNCIA:
 - Mencione que as vagas para o teste gratuito são *limitadas* nesta semana
