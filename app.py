@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 import uuid
@@ -239,35 +239,28 @@ async def get_user_augmented_prompt(
 
 # JARVIS SALES RAG ENDPOINTS
 
-@app.post("/api/sales-query", response_model=QueryResponse)
-async def sales_query(request: SalesQueryRequest):
-    """Answer a sales query with persuasive approach using JARVIS sales materials"""
-    global sales_rag_service
-    if not sales_rag_service:
-        logger.error("Sales RAG service not initialized")
-        raise HTTPException(status_code=500, detail="Sales RAG service not initialized")
+@app.post("/api/sales/ask")
+async def sales_query(query: SalesQueryRequest):
+    """
+    Endpoint para processar consultas de vendas.
     
-    try:
-        # Answer query with sales content
-        result = sales_rag_service.answer_sales_query(
-            query=request.query,
-            conversation_history=request.conversation_history,
-            k=request.k
-        )
-        logger.info("Consulta de vendas processada com sucesso")
+    Args:
+        query (SalesQueryRequest): Corpo da requisição contendo a query e histórico.
         
-        return QueryResponse(
-            answer=result["answer"],
-            augmented_prompt=result["augmented_prompt"],
-            system_prompt=result["system_prompt"]
+    Returns:
+        JSONResponse: Resposta da consulta.
+    """
+    try:
+        response = sales_rag_service.answer_sales_query(
+            query=query.query,
+            conversation_history=query.conversation_history
         )
+        return JSONResponse(content=response)
     except Exception as e:
-        error_trace = traceback.format_exc()
-        logger.error(f"Erro ao processar consulta de vendas: {str(e)}\n{error_trace}")
-        return QueryResponse(
-            answer=f"Desculpe, ocorreu um erro ao processar sua consulta: {str(e)}",
-            augmented_prompt="",
-            system_prompt=""
+        logger.error(f"Error in sales query endpoint: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Erro interno ao processar sua consulta. Por favor, tente novamente mais tarde."}
         )
 
 @app.post("/api/sales-search")

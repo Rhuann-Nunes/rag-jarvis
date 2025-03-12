@@ -12,11 +12,10 @@ def sales_query(query_text: str, conversation_history=None, k=3):
     """Query the Sales RAG API with persuasive content"""
     payload = {
         "query": query_text,
-        "conversation_history": conversation_history or [],
-        "k": k
+        "conversation_history": conversation_history or []
     }
     
-    response = requests.post(f"{API_URL}/api/sales-query", json=payload)
+    response = requests.post(f"{API_URL}/api/sales/ask", json=payload)
     return response.json()
 
 def sales_search(query_text: str, k=3):
@@ -73,12 +72,12 @@ def auto_demo():
         
         # Mostrar resposta
         print(f"\nJARVIS Sales ({(end_time - start_time):.2f}s):")
-        print(result["answer"])
+        print(result["response"])
         print("\n" + "-"*50)
         
         # Atualizar histórico
         conversation_history.append({"role": "user", "content": objection})
-        conversation_history.append({"role": "assistant", "content": result["answer"]})
+        conversation_history.append({"role": "assistant", "content": result["response"]})
         
         # Pausa entre consultas para não sobrecarregar a API
         if i < len(objections):
@@ -116,17 +115,21 @@ def main():
                 result = sales_query(query_text, conversation_history)
                 
                 print("\nJARVIS Sales:")
-                print(result["answer"])
+                print(result["response"])
                 
                 # Atualizar histórico
                 conversation_history.append({"role": "user", "content": query_text})
-                conversation_history.append({"role": "assistant", "content": result["answer"]})
+                conversation_history.append({"role": "assistant", "content": result["response"]})
                 
-                # Opção para ver prompts
-                show_prompt = input("\nDeseja ver o prompt? (s/n): ")
-                if show_prompt.lower() == "s":
-                    print("\nPrompt Aumentado:")
-                    print(result.get("augmented_prompt", "Não disponível"))
+                # Opção para ver resultados da busca
+                if "search_results" in result and result["search_results"]:
+                    show_search = input("\nDeseja ver os resultados da busca? (s/n): ")
+                    if show_search.lower() == "s":
+                        print("\nResultados da Busca:")
+                        for i, sr in enumerate(result["search_results"], 1):
+                            print(f"\n--- Resultado {i} ---")
+                            print(f"Score: {sr.get('score', 'N/A')}")
+                            print(sr.get('text', 'N/A'))
         
         elif choice == "2":
             # Pesquisar conteúdo

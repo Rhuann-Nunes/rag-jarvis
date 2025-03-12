@@ -537,22 +537,21 @@
                     content: query
                 });
                 
-                fetch(`${apiUrl}/api/sales-query`, {
+                fetch(`${apiUrl}/api/sales/ask`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
                         query: query,
-                        conversation_history: salesConversationHistory,
-                        k: kValue
+                        conversation_history: salesConversationHistory
                     })
                 })
                 .then(response => response.json())
                 .then(data => {
                     loadingSales.classList.add('d-none');
                     
-                    const answer = data.answer || 'Desculpe, não consegui processar sua pergunta sobre o JARVIS.';
+                    const answer = data.response || 'Desculpe, não consegui processar sua pergunta sobre o JARVIS.';
                     addMessageToChat(salesChat, 'assistant', answer);
                     
                     // Adicionar à história de conversação
@@ -561,9 +560,14 @@
                         content: answer
                     });
                     
-                    // Atualizar prompt
-                    if (data.augmented_prompt) {
-                        salesPrompt.textContent = data.augmented_prompt;
+                    // Se tiver dados de busca, atualizar o prompt
+                    if (data.search_results) {
+                        const searchResultsText = data.search_results
+                            .map((result, index) => `Resultado ${index+1}: ${result.text}`)
+                            .join('\n\n');
+                        salesPrompt.textContent = searchResultsText;
+                    } else {
+                        salesPrompt.textContent = '';
                     }
                     
                     // Salvar história no localStorage
