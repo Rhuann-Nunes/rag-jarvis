@@ -79,6 +79,33 @@
         .badge-button {
             cursor: pointer;
         }
+        /* Estilo específico para a aba de vendas */
+        .sales-avatar {
+            width: 60px;
+            height: 60px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-bottom: 10px;
+        }
+        .suggestion-pill {
+            background-color: #e9f5ec;
+            color: #2E7D32;
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            display: inline-block;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid #c8e6c9;
+        }
+        .suggestion-pill:hover {
+            background-color: #c8e6c9;
+        }
     </style>
 </head>
 <body>
@@ -91,6 +118,9 @@
         <ul class="nav nav-tabs" id="myTab" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="jarvis-tab" data-bs-toggle="tab" data-bs-target="#jarvis" type="button" role="tab" aria-controls="jarvis" aria-selected="true">JARVIS</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab" aria-controls="sales" aria-selected="false">Vendedor</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config" type="button" role="tab" aria-controls="config" aria-selected="false">Configurações</button>
@@ -152,6 +182,63 @@
                 </div>
             </div>
 
+            <!-- Sales Tab -->
+            <div class="tab-pane fade" id="sales" role="tabpanel" aria-labelledby="sales-tab">
+                <div class="row mb-3">
+                    <div class="col-md-12 text-center">
+                        <div class="sales-avatar mx-auto">
+                            <i class="bi">$</i>
+                        </div>
+                        <h3>Consultor de Vendas JARVIS</h3>
+                        <p class="text-muted">Tire suas dúvidas sobre o JARVIS e descubra como ele pode transformar sua produtividade</p>
+                    </div>
+                </div>
+
+                <div class="chat-container" id="salesChat">
+                    <div class="system-message">Olá! Sou o consultor de vendas do JARVIS. Como posso ajudar você hoje?</div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="d-flex flex-wrap justify-content-center">
+                            <div class="suggestion-pill" data-query="Quanto custa o JARVIS?">Quanto custa?</div>
+                            <div class="suggestion-pill" data-query="Quais são os recursos principais do JARVIS?">Recursos principais</div>
+                            <div class="suggestion-pill" data-query="Como o JARVIS é melhor que outros aplicativos de tarefas?">Por que é melhor?</div>
+                            <div class="suggestion-pill" data-query="Como funciona o JARVIS no WhatsApp?">JARVIS no WhatsApp</div>
+                            <div class="suggestion-pill" data-query="O JARVIS funciona offline?">Funciona offline?</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="salesInput" placeholder="Digite sua pergunta sobre o JARVIS...">
+                            <button class="btn btn-success" type="button" id="salesSendBtn">
+                                Enviar
+                            </button>
+                        </div>
+                        <div id="loadingSales" class="d-none">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            Consultando...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="d-flex justify-content-start gap-2 mb-2">
+                            <button class="btn btn-sm btn-outline-secondary" id="toggleSalesPrompt">Mostrar Prompt</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="clearSalesChat">Limpar Conversa</button>
+                        </div>
+                        <div id="salesPromptContainer" class="d-none">
+                            <h5>Último Prompt</h5>
+                            <pre id="salesPrompt"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Configurações Tab -->
             <div class="tab-pane fade" id="config" role="tabpanel" aria-labelledby="config-tab">
                 <div class="row mb-3">
@@ -175,6 +262,14 @@
                         <div id="apiStatus" class="mt-2"></div>
                     </div>
                 </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <h4>Administração</h4>
+                        <button class="btn btn-warning" id="reloadSalesContent">Recarregar Conteúdo de Vendas</button>
+                        <div id="reloadStatus" class="mt-2"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -186,11 +281,12 @@
             let apiUrl = 'http://localhost:8000';
             let kValue = 3;
             let jarvisConversationHistory = [];
+            let salesConversationHistory = [];
             let userId = '';
             let userName = '';
             let formOfAddress = '';
 
-            // Elementos da UI
+            // Elementos da UI - JARVIS
             const userIdInput = document.getElementById('userIdInput');
             const userNameInput = document.getElementById('userNameInput');
             const loadUserDataBtn = document.getElementById('loadUserDataBtn');
@@ -205,11 +301,25 @@
             const toggleJarvisPrompt = document.getElementById('toggleJarvisPrompt');
             const clearJarvisChat = document.getElementById('clearJarvisChat');
 
+            // Elementos da UI - Sales
+            const salesChat = document.getElementById('salesChat');
+            const salesInput = document.getElementById('salesInput');
+            const salesSendBtn = document.getElementById('salesSendBtn');
+            const loadingSales = document.getElementById('loadingSales');
+            const salesPrompt = document.getElementById('salesPrompt');
+            const salesPromptContainer = document.getElementById('salesPromptContainer');
+            const toggleSalesPrompt = document.getElementById('toggleSalesPrompt');
+            const clearSalesChat = document.getElementById('clearSalesChat');
+            const suggestionPills = document.querySelectorAll('.suggestion-pill');
+
+            // Elementos da UI - Config
             const apiUrlInput = document.getElementById('apiUrl');
             const kValueInput = document.getElementById('kValue');
             const saveConfigBtn = document.getElementById('saveConfigBtn');
             const checkStatusBtn = document.getElementById('checkStatusBtn');
             const apiStatus = document.getElementById('apiStatus');
+            const reloadSalesContent = document.getElementById('reloadSalesContent');
+            const reloadStatus = document.getElementById('reloadStatus');
 
             // Carregar configurações
             if (localStorage.getItem('ragJarvisConfig')) {
@@ -328,7 +438,7 @@
                 });
             });
 
-            // Consulta JARVIS
+            // JARVIS Query
             jarvisSendBtn.addEventListener('click', sendJarvisMessage);
             jarvisInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
@@ -395,6 +505,99 @@
                 });
             }
 
+            // Sales Query
+            salesSendBtn.addEventListener('click', sendSalesMessage);
+            salesInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendSalesMessage();
+                }
+            });
+
+            // Sugestões de perguntas sobre vendas
+            suggestionPills.forEach(pill => {
+                pill.addEventListener('click', function() {
+                    const query = this.dataset.query;
+                    salesInput.value = query;
+                    sendSalesMessage();
+                });
+            });
+
+            function sendSalesMessage() {
+                const query = salesInput.value.trim();
+                
+                if (!query) return;
+                
+                addMessageToChat(salesChat, 'user', query);
+                salesInput.value = '';
+                loadingSales.classList.remove('d-none');
+                
+                // Adicionar à história de conversação
+                salesConversationHistory.push({
+                    role: 'user',
+                    content: query
+                });
+                
+                fetch(`${apiUrl}/api/sales-query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        conversation_history: salesConversationHistory,
+                        k: kValue
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadingSales.classList.add('d-none');
+                    
+                    const answer = data.answer || 'Desculpe, não consegui processar sua pergunta sobre o JARVIS.';
+                    addMessageToChat(salesChat, 'assistant', answer);
+                    
+                    // Adicionar à história de conversação
+                    salesConversationHistory.push({
+                        role: 'assistant',
+                        content: answer
+                    });
+                    
+                    // Atualizar prompt
+                    if (data.augmented_prompt) {
+                        salesPrompt.textContent = data.augmented_prompt;
+                    }
+                    
+                    // Salvar história no localStorage
+                    localStorage.setItem('salesConversationHistory', JSON.stringify(salesConversationHistory));
+                })
+                .catch(error => {
+                    loadingSales.classList.add('d-none');
+                    addMessageToChat(salesChat, 'system', `Erro: ${error.message}`);
+                });
+            }
+
+            // Recarregar conteúdo de vendas
+            reloadSalesContent.addEventListener('click', function() {
+                reloadStatus.innerHTML = '<div class="alert alert-info">Recarregando conteúdo de vendas...</div>';
+                
+                fetch(`${apiUrl}/api/reload-sales-content`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        reloadStatus.innerHTML = `<div class="alert alert-success">Conteúdo recarregado: ${data.message}</div>`;
+                    } else {
+                        reloadStatus.innerHTML = `<div class="alert alert-danger">Erro: ${data.message}</div>`;
+                    }
+                })
+                .catch(error => {
+                    reloadStatus.innerHTML = `<div class="alert alert-danger">Erro: ${error.message}</div>`;
+                });
+            });
+
             // Utilitários
             function addMessageToChat(chatContainer, role, message) {
                 const messageDiv = document.createElement('div');
@@ -404,7 +607,7 @@
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
 
-            // Botões de interface
+            // Botões de interface - JARVIS
             toggleJarvisPrompt.addEventListener('click', function() {
                 jarvisPromptContainer.classList.toggle('d-none');
                 toggleJarvisPrompt.textContent = jarvisPromptContainer.classList.contains('d-none') ? 'Mostrar Prompt' : 'Ocultar Prompt';
@@ -416,7 +619,19 @@
                 localStorage.removeItem('jarvisConversationHistory');
             });
 
-            // Carregar histórico salvo
+            // Botões de interface - Sales
+            toggleSalesPrompt.addEventListener('click', function() {
+                salesPromptContainer.classList.toggle('d-none');
+                toggleSalesPrompt.textContent = salesPromptContainer.classList.contains('d-none') ? 'Mostrar Prompt' : 'Ocultar Prompt';
+            });
+
+            clearSalesChat.addEventListener('click', function() {
+                salesChat.innerHTML = '<div class="system-message">Olá! Sou o consultor de vendas do JARVIS. Como posso ajudar você hoje?</div>';
+                salesConversationHistory = [];
+                localStorage.removeItem('salesConversationHistory');
+            });
+
+            // Carregar histórico salvo - JARVIS
             if (localStorage.getItem('jarvisConversationHistory')) {
                 try {
                     jarvisConversationHistory = JSON.parse(localStorage.getItem('jarvisConversationHistory'));
@@ -429,6 +644,22 @@
                     });
                 } catch (e) {
                     console.error('Erro ao carregar histórico JARVIS:', e);
+                }
+            }
+
+            // Carregar histórico salvo - Sales
+            if (localStorage.getItem('salesConversationHistory')) {
+                try {
+                    salesConversationHistory = JSON.parse(localStorage.getItem('salesConversationHistory'));
+                    
+                    // Renderizar mensagens
+                    salesChat.innerHTML = '<div class="system-message">Histórico de conversa carregado.</div>';
+                    
+                    salesConversationHistory.forEach(entry => {
+                        addMessageToChat(salesChat, entry.role, entry.content);
+                    });
+                } catch (e) {
+                    console.error('Erro ao carregar histórico Sales:', e);
                 }
             }
 

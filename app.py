@@ -9,8 +9,9 @@ import os
 import logging
 import traceback
 
-# Import RAG service
+# Import RAG services
 from rag import RAGService
+from sales_rag import SalesRAGService
 from supabase_client import SupabaseClient
 
 # Configurar logging
@@ -33,8 +34,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize RAG service and Supabase client
+# Initialize RAG services and Supabase client
 rag_service = None
+sales_rag_service = None
 supabase_client = None
 
 # Create static directory if it doesn't exist
@@ -45,14 +47,20 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.on_event("startup")
 async def startup_event():
-    global rag_service, supabase_client
+    global rag_service, sales_rag_service, supabase_client
     rag_service = RAGService()
+    sales_rag_service = SalesRAGService()
     supabase_client = SupabaseClient()
 
 # Define models
 class UserQueryRequest(BaseModel):
     user_id: str = Field(..., description="The Supabase UUID of the user")
     user_name: str = Field(..., description="The name of the user")
+    query: str
+    conversation_history: Optional[List[Dict[str, str]]] = None
+    k: Optional[int] = 3  # Number of documents to retrieve
+
+class SalesQueryRequest(BaseModel):
     query: str
     conversation_history: Optional[List[Dict[str, str]]] = None
     k: Optional[int] = 3  # Number of documents to retrieve
@@ -80,6 +88,8 @@ async def api_root():
         "docs_url": "/docs",
         "version": "0.1.0"
     }
+
+# JARVIS USER RAG ENDPOINTS
 
 @app.post("/api/load-user-data")
 async def load_user_data(request: LoadUserDataRequest):
@@ -225,4 +235,74 @@ async def get_user_augmented_prompt(
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error(f"Erro ao gerar prompt para o usuário: {str(e)}\n{error_trace}")
+        return {"status": "error", "message": str(e)}
+
+# JARVIS SALES RAG ENDPOINTS
+
+@app.post("/api/sales-query", response_model=QueryResponse)
+async def sales_query(request: SalesQueryRequest):
+    """Answer a sales query with persuasive approach using JARVIS sales materials"""
+    global sales_rag_service
+    if not sales_rag_service:
+        logger.error("Sales RAG service not initialized")
+        raise HTTPException(status_code=500, detail="Sales RAG service not initialized")
+    
+    try:
+        # Answer query with sales content
+        result = sales_rag_service.answer_sales_query(
+            query=request.query,
+            conversation_history=request.conversation_history,
+            k=request.k
+        )
+        logger.info("Consulta de vendas processada com sucesso")
+        
+        return QueryResponse(
+            answer=result["answer"],
+            augmented_prompt=result["augmented_prompt"],
+            system_prompt=result["system_prompt"]
+        )
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        logger.error(f"Erro ao processar consulta de vendas: {str(e)}\n{error_trace}")
+        return QueryResponse(
+            answer=f"Desculpe, ocorreu um erro ao processar sua consulta: {str(e)}",
+            augmented_prompt="",
+            system_prompt=""
+        )
+
+@app.post("/api/sales-search")
+async def sales_search(
+    query: str = Body(..., embed=True),
+    k: int = Body(3, embed=True)
+):
+    """Search for relevant sales content based on the query"""
+    global sales_rag_service
+    if not sales_rag_service:
+        logger.error("Sales RAG service not initialized")
+        raise HTTPException(status_code=500, detail="Sales RAG service not initialized")
+    
+    try:
+        # Search sales content
+        results = sales_rag_service.search_sales_content(query, k=k)
+        return {"results": results}
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        logger.error(f"Erro ao buscar conteúdo de vendas: {str(e)}\n{error_trace}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/reload-sales-content")
+async def reload_sales_content():
+    """Reload the sales content from the markdown file"""
+    global sales_rag_service
+    if not sales_rag_service:
+        logger.error("Sales RAG service not initialized")
+        raise HTTPException(status_code=500, detail="Sales RAG service not initialized")
+    
+    try:
+        # Reload sales content
+        result = sales_rag_service.load_sales_content()
+        return result
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        logger.error(f"Erro ao recarregar conteúdo de vendas: {str(e)}\n{error_trace}")
         return {"status": "error", "message": str(e)} 
