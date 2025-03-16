@@ -788,18 +788,27 @@ class LLMService:
                     if status == "error":
                         raise result
                     completion = result
-                    return completion.choices[0].message.content
+                    
+                    # Validar o conteúdo da resposta
+                    if not completion or not completion.choices or not completion.choices[0].message:
+                        logger.error("Resposta vazia ou inválida do modelo")
+                        return ""
+                        
+                    content = completion.choices[0].message.content
+                    if not content or len(content.strip()) < 10:  # Resposta muito curta é suspeita
+                        logger.error(f"Resposta muito curta ou vazia: '{content}'")
+                        return ""
+                    
+                    return content
                 except queue.Empty:
                     logger.error(f"LLM request timed out after {self.timeout}s")
-                    return self.fallback_responses["error_timeout"]
+                    return ""
                 
             except Exception as e:
                 error_type = type(e).__name__
                 self._log_error_details(e, {"error_type": "timeout_handler"})
-                if "timeout" in error_type.lower():
-                    return self.fallback_responses["error_timeout"]
-                else:
-                    raise e
+                logger.error(f"Erro ao processar resposta: {error_type} - {str(e)}")
+                return ""
                 
         except Exception as e:
             error_type = type(e).__name__
@@ -808,14 +817,8 @@ class LLMService:
                 "temperature": temperature,
                 "max_tokens": max_tokens
             })
-            
-            # Fornecer respostas de fallback específicas
-            if "timeout" in error_type.lower():
-                return self.fallback_responses["error_timeout"]
-            elif any(term in str(e).lower() for term in ["api", "key", "auth", "credential"]):
-                return self.fallback_responses["error_api"]
-            else:
-                return f"{self.fallback_responses['error_unknown']} ({error_type})"
+            logger.error(f"Erro global ao gerar resposta: {error_type} - {str(e)}")
+            return ""
 
 
 # Classe principal do serviço RAG
@@ -916,19 +919,31 @@ class SalesRAGService:
             query = query.strip() if query else ""
             conversation_history = conversation_history or []
             
-            if not query:
+            # Validação rigorosa de entrada
+            if not query or len(query) < 2:
+                logger.info("Consulta vazia ou muito curta - retornando empty_query")
                 return {"response": "", "empty_query": True}
+                
+            # Verificação adicional para evitar processamento de consultas problemáticas
+            if query.lower() in ["oi", "olá", "teste", "ola", "hi", "hello"]:
+                # Para saudações simples, responder de forma leve sem pesquisa complexa
+                greeting_response = "Olá! 👋 Sou Davi, Gerente Comercial do JARVIS. Como posso ajudar você hoje?"
+                return {"response": greeting_response}
             
             # Obtendo os dados relevantes através de pesquisa semântica
-            search_results = self.search_service.search(
-                query=query,
-                documents=self.sales_docs,
-                doc_embeddings=self.doc_embeddings,
-                k=self.top_k_results
-            )
-            
-            if not search_results:
-                logger.warning(f"No search results found for query: {query}")
+            try:
+                search_results = self.search_service.search(
+                    query=query,
+                    documents=self.sales_docs,
+                    doc_embeddings=self.doc_embeddings,
+                    k=self.top_k_results
+                )
+                
+                if not search_results:
+                    logger.warning(f"No search results found for query: {query}")
+            except Exception as search_error:
+                logger.error(f"Erro durante a pesquisa semântica: {str(search_error)}")
+                search_results = []
             
             # Detectando o nome do cliente (opcional)
             client_name = ""
@@ -970,6 +985,11 @@ class SalesRAGService:
                 max_tokens=1500
             )
             
+            # Validação extra da resposta gerada
+            if not response_content or len(response_content.strip()) < 20:
+                logger.warning("Resposta muito curta ou vazia retornada pelo modelo")
+                return {"response": "", "empty_query": True}
+            
             return {
                 "response": response_content,
                 "search_results": search_results if self.debug_mode else None
@@ -977,7 +997,5 @@ class SalesRAGService:
             
         except Exception as e:
             logger.error(f"Error answering sales query: {str(e)}", exc_info=True)
-            return {
-                "response": "Desculpe, estou enfrentando algumas dificuldades técnicas no momento. Poderia tentar novamente em alguns instantes?",
-                "error": str(e) if self.debug_mode else None
-            } 
+            # Não retornar mensagens de erro para o usuário
+            return {"response": "", "empty_query": True} 

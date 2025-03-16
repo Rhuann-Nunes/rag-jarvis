@@ -547,16 +547,32 @@
                         conversation_history: salesConversationHistory
                     })
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro de rede: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     loadingSales.classList.add('d-none');
                     
-                    // Se for uma consulta vazia, não fazer nada
-                    if (data.empty_query) {
+                    // Se for uma consulta vazia ou com erro, não fazer nada
+                    if (data.empty_query || !data.response || data.response.trim() === "") {
+                        console.log("Consulta vazia ou resposta inválida - ignorando");
                         return;
                     }
                     
-                    const answer = data.response || 'Desculpe, não consegui processar sua pergunta sobre o JARVIS.';
+                    const answer = data.response;
+                    
+                    // Validação adicional da resposta
+                    if (answer.includes("dificuldades técnicas") || 
+                        answer.includes("erro") || 
+                        answer.length < 20) {
+                        console.log("Resposta com indicação de erro ou muito curta - ignorando");
+                        return;
+                    }
+                    
+                    // Adicionar a mensagem ao chat
                     addMessageToChat(salesChat, 'assistant', answer);
                     
                     // Adicionar à história de conversação
