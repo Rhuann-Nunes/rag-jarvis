@@ -24,7 +24,7 @@ JARVIS_SALES_CONTENT = """# JARVIS: Seu Assistente Pessoal de IA
 
 O JARVIS é um assistente pessoal de produtividade alimentado por inteligência artificial, inspirado no famoso assistente do Homem de Ferro. Diferente de outros aplicativos de tarefas, o JARVIS entende linguagem natural e organiza sua vida através de uma interface intuitiva e acessível de qualquer dispositivo.
 
-**[➡️ Acesse agora o JARVIS: https://www.appjarvis.com.br/](https://www.appjarvis.com.br/)**
+**[➡️ Acesse agora o JARVIS: https://www.appjarvis.com.br/login](https://www.appjarvis.com.br/login)**
 
 ## Como o JARVIS transforma sua produtividade
 
@@ -50,7 +50,7 @@ Autenticação segura, armazenamento criptografado e controle total dos dados.
 
 ## Comece Agora - Vagas Limitadas!
 
-**[🚀 Experimente o JARVIS GRATUITAMENTE: https://www.appjarvis.com.br/](https://www.appjarvis.com.br/)**
+**[🚀 Experimente o JARVIS GRATUITAMENTE: https://www.appjarvis.com.br/login](https://www.appjarvis.com.br/login)**
 
 ## Planos Acessíveis
 
@@ -497,13 +497,13 @@ ABORDAGEM DE VENDAS:
 - GRADUALMENTE: Revele informações em pequenas doses, não tudo de uma vez
 
 COMPARTILHE O LINK:
-- Sempre compartilhe o link da plataforma: https://www.appjarvis.com.br/
+- Sempre compartilhe o link da plataforma: https://www.appjarvis.com.br/login
 - Momentos ideais para compartilhar o link:
   1. Quando o cliente mostrar interesse em conhecer o produto
   2. Logo após descrever um benefício que desperte curiosidade
   3. Quando o cliente perguntar como acessar ou se cadastrar
   4. No final da conversa como call-to-action
-- Formate o link de forma destacada com emojis: 🚀 https://www.appjarvis.com.br/
+- Formate o link de forma destacada com emojis: 🚀 https://www.appjarvis.com.br/login
 - Reforçe que o cadastro gratuito leva menos de 1 minuto
 
 GATILHOS DE URGÊNCIA:
@@ -529,7 +529,7 @@ SOBRE INFORMAÇÕES DO PRODUTO:
 - Teste gratuito: 7 dias sem cartão de crédito (*vagas limitadas*)
 - Plano anual: R$50/ano (menos de R$4,20/mês) - *oferta por tempo limitado*
 - Destaque que o JARVIS está em fase de crescimento e os preços tendem a aumentar
-- Link do site: https://www.appjarvis.com.br/
+- Link do site: https://www.appjarvis.com.br/login
 
 IMPORTANTE: Quando o cliente fizer uma pergunta, responda diretamente e de forma concisa. Não transforme cada resposta em uma apresentação completa do produto. Construa a conversa gradualmente, como um diálogo natural de WhatsApp. Insira elementos de urgência de forma natural e relevante ao contexto, evitando parecer agressivo ou desesperado."""
 
@@ -587,7 +587,7 @@ PARA ESTA MENSAGEM:
             specific_instructions.append("- Inclua um elemento de urgência para incentivar ação imediata")
         
         if config["include_link"]:
-            specific_instructions.append("- Compartilhe o link do site: https://www.appjarvis.com.br/")
+            specific_instructions.append("- Compartilhe o link do site: https://www.appjarvis.com.br/login")
         
         if client_name:
             specific_instructions.append(f"- Personalize a resposta usando o nome do cliente: {client_name}")
@@ -917,7 +917,7 @@ class SalesRAGService:
             conversation_history = conversation_history or []
             
             if not query:
-                return {"response": "Parece que você não enviou uma mensagem. Como posso ajudar?"}
+                return {"response": "", "empty_query": True}
             
             # Obtendo os dados relevantes através de pesquisa semântica
             search_results = self.search_service.search(

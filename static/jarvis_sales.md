@@ -4,7 +4,7 @@
 
 O JARVIS é um assistente pessoal de produtividade alimentado por inteligência artificial, inspirado no famoso assistente do Homem de Ferro. Diferente de outros aplicativos de tarefas, o JARVIS entende linguagem natural e organiza sua vida através de uma interface intuitiva e acessível de qualquer dispositivo.
 
-**[➡️ Acesse agora o JARVIS: https://www.appjarvis.com.br/](https://www.appjarvis.com.br/)**
+**[➡️ Acesse agora o JARVIS: https://www.appjarvis.com.br/login](https://www.appjarvis.com.br/login)**
 
 ## Como o JARVIS transforma sua produtividade
 
@@ -44,7 +44,7 @@ Autenticação segura, armazenamento criptografado e controle total dos dados.
 
 ## Comece Agora - Vagas Limitadas!
 
-**[🚀 Experimente o JARVIS GRATUITAMENTE: https://www.appjarvis.com.br/](https://www.appjarvis.com.br/)**
+**[🚀 Experimente o JARVIS GRATUITAMENTE: https://www.appjarvis.com.br/login](https://www.appjarvis.com.br/login)**
 
 ## Planos Acessíveis
 

@@ -551,6 +551,11 @@
                 .then(data => {
                     loadingSales.classList.add('d-none');
                     
+                    // Se for uma consulta vazia, não fazer nada
+                    if (data.empty_query) {
+                        return;
+                    }
+                    
                     const answer = data.response || 'Desculpe, não consegui processar sua pergunta sobre o JARVIS.';
                     addMessageToChat(salesChat, 'assistant', answer);
                     
