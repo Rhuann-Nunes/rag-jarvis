@@ -4,8 +4,6 @@
 
 O JARVIS é um assistente pessoal de produtividade alimentado por inteligência artificial, inspirado no famoso assistente do Homem de Ferro. Diferente de outros aplicativos de tarefas, o JARVIS entende linguagem natural e organiza sua vida através de uma interface intuitiva e acessível de qualquer dispositivo.
 
-**[➡️ Acesse agora o JARVIS: https://www.appjarvis.com.br/login](https://www.appjarvis.com.br/login)**
-
 ## Como o JARVIS transforma sua produtividade
 
 ### 🔍 Entendendo Linguagem Natural
@@ -36,17 +34,17 @@ O sistema organiza suas tarefas automaticamente com base em:
 
 ### 🤖 JARVIS no WhatsApp
 
-Acesso total aos seus dados, assistente proativo, cria e gerencia tarefas.
+- **Acesso total aos seus dados**: crie e gerencie tarefas diretamente pelo WhatsApp
+- **Assistente proativo**: receba lembretes e sugestões personalizadas
+- **Linguagem natural**: converse naturalmente, como se estivesse falando com um assistente real
 
 ## Segurança e Privacidade
 
-Autenticação segura, armazenamento criptografado e controle total dos dados.
+- **Autenticação segura**: seus dados protegidos com os mais altos padrões de segurança
+- **Armazenamento criptografado**: todas as informações são armazenadas com criptografia de ponta
+- **Controle total**: você decide quais dados compartilhar e pode excluí-los a qualquer momento
 
-## Comece Agora - Vagas Limitadas!
-
-**[🚀 Experimente o JARVIS GRATUITAMENTE: https://www.appjarvis.com.br/login](https://www.appjarvis.com.br/login)**
-
-## Planos Acessíveis
+## Experimente Gratuitamente
 
 - **7 Dias Grátis** – Experimente todas as funcionalidades sem cartão de crédito
-- **Plano Anual** – Apenas R$ 50,00 por um ano inteiro de produtividade transformadora 
+- **Acesso completo** – Sem limitações durante o período de teste 

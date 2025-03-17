@@ -79,8 +79,8 @@
         .badge-button {
             cursor: pointer;
         }
-        /* Estilo específico para a aba de vendas */
-        .sales-avatar {
+        /* Estilo específico para a aba de especialista */
+        .expert-avatar {
             width: 60px;
             height: 60px;
             background-color: #4CAF50;
@@ -120,7 +120,7 @@
                 <button class="nav-link active" id="jarvis-tab" data-bs-toggle="tab" data-bs-target="#jarvis" type="button" role="tab" aria-controls="jarvis" aria-selected="true">JARVIS</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab" aria-controls="sales" aria-selected="false">Vendedor</button>
+                <button class="nav-link" id="expert-tab" data-bs-toggle="tab" data-bs-target="#expert" type="button" role="tab" aria-controls="expert" aria-selected="false">Especialista</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config" type="button" role="tab" aria-controls="config" aria-selected="false">Configurações</button>
@@ -182,30 +182,30 @@
                 </div>
             </div>
 
-            <!-- Sales Tab -->
-            <div class="tab-pane fade" id="sales" role="tabpanel" aria-labelledby="sales-tab">
+            <!-- Especialista Tab -->
+            <div class="tab-pane fade" id="expert" role="tabpanel" aria-labelledby="expert-tab">
                 <div class="row mb-3">
                     <div class="col-md-12 text-center">
-                        <div class="sales-avatar mx-auto">
-                            <i class="bi">$</i>
+                        <div class="expert-avatar mx-auto">
+                            <i class="bi">J</i>
                         </div>
-                        <h3>Consultor de Vendas JARVIS</h3>
+                        <h3>Especialista do JARVIS</h3>
                         <p class="text-muted">Tire suas dúvidas sobre o JARVIS e descubra como ele pode transformar sua produtividade</p>
                     </div>
                 </div>
 
-                <div class="chat-container" id="salesChat">
-                    <div class="system-message">Olá! Sou o consultor de vendas do JARVIS. Como posso ajudar você hoje?</div>
+                <div class="chat-container" id="expertChat">
+                    <div class="system-message">Olá! Sou o especialista do JARVIS. Como posso ajudar você hoje?</div>
                 </div>
 
                 <div class="row mb-3">
                     <div class="col-md-12">
                         <div class="d-flex flex-wrap justify-content-center">
-                            <div class="suggestion-pill" data-query="Quanto custa o JARVIS?">Quanto custa?</div>
+                            <div class="suggestion-pill" data-query="Como posso experimentar o JARVIS?">Experimentar grátis</div>
                             <div class="suggestion-pill" data-query="Quais são os recursos principais do JARVIS?">Recursos principais</div>
                             <div class="suggestion-pill" data-query="Como o JARVIS é melhor que outros aplicativos de tarefas?">Por que é melhor?</div>
                             <div class="suggestion-pill" data-query="Como funciona o JARVIS no WhatsApp?">JARVIS no WhatsApp</div>
-                            <div class="suggestion-pill" data-query="O JARVIS funciona offline?">Funciona offline?</div>
+                            <div class="suggestion-pill" data-query="Preciso de cartão de crédito para o teste gratuito?">Sobre o teste gratuito</div>
                         </div>
                     </div>
                 </div>
@@ -213,12 +213,12 @@
                 <div class="row">
                     <div class="col-md-12">
                         <div class="input-group mb-3">
-                            <input type="text" class="form-control" id="salesInput" placeholder="Digite sua pergunta sobre o JARVIS...">
-                            <button class="btn btn-success" type="button" id="salesSendBtn">
+                            <input type="text" class="form-control" id="expertInput" placeholder="Digite sua pergunta sobre o JARVIS...">
+                            <button class="btn btn-success" type="button" id="expertSendBtn">
                                 Enviar
                             </button>
                         </div>
-                        <div id="loadingSales" class="d-none">
+                        <div id="loadingExpert" class="d-none">
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                             Consultando...
                         </div>
@@ -228,12 +228,12 @@
                 <div class="row mt-3">
                     <div class="col-md-12">
                         <div class="d-flex justify-content-start gap-2 mb-2">
-                            <button class="btn btn-sm btn-outline-secondary" id="toggleSalesPrompt">Mostrar Prompt</button>
-                            <button class="btn btn-sm btn-outline-secondary" id="clearSalesChat">Limpar Conversa</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="toggleExpertPrompt">Mostrar Prompt</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="clearExpertChat">Limpar Conversa</button>
                         </div>
-                        <div id="salesPromptContainer" class="d-none">
+                        <div id="expertPromptContainer" class="d-none">
                             <h5>Último Prompt</h5>
-                            <pre id="salesPrompt"></pre>
+                            <pre id="expertPrompt"></pre>
                         </div>
                     </div>
                 </div>
@@ -266,7 +266,7 @@
                 <div class="row mt-4">
                     <div class="col-md-12">
                         <h4>Administração</h4>
-                        <button class="btn btn-warning" id="reloadSalesContent">Recarregar Conteúdo de Vendas</button>
+                        <button class="btn btn-warning" id="reloadJarvisContent">Recarregar Conteúdo do JARVIS</button>
                         <div id="reloadStatus" class="mt-2"></div>
                     </div>
                 </div>
@@ -281,10 +281,11 @@
             let apiUrl = 'http://localhost:8000';
             let kValue = 3;
             let jarvisConversationHistory = [];
-            let salesConversationHistory = [];
+            let expertConversationHistory = [];
             let userId = '';
             let userName = '';
             let formOfAddress = '';
+            let lastActivityTimestamp = Date.now();  // Registrar a última atividade
 
             // Elementos da UI - JARVIS
             const userIdInput = document.getElementById('userIdInput');
@@ -301,15 +302,15 @@
             const toggleJarvisPrompt = document.getElementById('toggleJarvisPrompt');
             const clearJarvisChat = document.getElementById('clearJarvisChat');
 
-            // Elementos da UI - Sales
-            const salesChat = document.getElementById('salesChat');
-            const salesInput = document.getElementById('salesInput');
-            const salesSendBtn = document.getElementById('salesSendBtn');
-            const loadingSales = document.getElementById('loadingSales');
-            const salesPrompt = document.getElementById('salesPrompt');
-            const salesPromptContainer = document.getElementById('salesPromptContainer');
-            const toggleSalesPrompt = document.getElementById('toggleSalesPrompt');
-            const clearSalesChat = document.getElementById('clearSalesChat');
+            // Elementos da UI - Especialista
+            const expertChat = document.getElementById('expertChat');
+            const expertInput = document.getElementById('expertInput');
+            const expertSendBtn = document.getElementById('expertSendBtn');
+            const loadingExpert = document.getElementById('loadingExpert');
+            const expertPrompt = document.getElementById('expertPrompt');
+            const expertPromptContainer = document.getElementById('expertPromptContainer');
+            const toggleExpertPrompt = document.getElementById('toggleExpertPrompt');
+            const clearExpertChat = document.getElementById('clearExpertChat');
             const suggestionPills = document.querySelectorAll('.suggestion-pill');
 
             // Elementos da UI - Config
@@ -318,7 +319,7 @@
             const saveConfigBtn = document.getElementById('saveConfigBtn');
             const checkStatusBtn = document.getElementById('checkStatusBtn');
             const apiStatus = document.getElementById('apiStatus');
-            const reloadSalesContent = document.getElementById('reloadSalesContent');
+            const reloadJarvisContent = document.getElementById('reloadJarvisContent');
             const reloadStatus = document.getElementById('reloadStatus');
 
             // Carregar configurações
@@ -505,46 +506,182 @@
                 });
             }
 
-            // Sales Query
-            salesSendBtn.addEventListener('click', sendSalesMessage);
-            salesInput.addEventListener('keypress', function(e) {
+            // Verificar e limpar histórico antigo
+            function checkAndCleanStaleHistory() {
+                const now = Date.now();
+                const lastSavedTimestamp = parseInt(localStorage.getItem('lastConversationTimestamp') || '0');
+                const inactivityPeriod = 12 * 60 * 60 * 1000; // 12 horas em milissegundos
+                
+                if (lastSavedTimestamp && (now - lastSavedTimestamp > inactivityPeriod)) {
+                    console.log(`Detectada inatividade de ${Math.round((now - lastSavedTimestamp) / (60 * 60 * 1000))} horas. Limpando histórico de conversa.`);
+                    
+                    // Limpar históricos
+                    localStorage.removeItem('expertConversationHistory');
+                    localStorage.removeItem('jarvisConversationHistory');
+                    expertConversationHistory = [];
+                    jarvisConversationHistory = [];
+                    
+                    // Atualizar interface
+                    expertChat.innerHTML = '<div class="system-message">Histórico de conversa anterior expirou. Iniciando nova conversa.</div>';
+                    jarvisChat.innerHTML = '<div class="system-message">Histórico de conversa anterior expirou. Iniciando nova conversa.</div>';
+                    
+                    return true; // História foi limpa
+                }
+                return false; // Nada foi limpo
+            }
+
+            // Atualizar o timestamp da última atividade
+            function updateActivityTimestamp() {
+                lastActivityTimestamp = Date.now();
+                localStorage.setItem('lastConversationTimestamp', lastActivityTimestamp.toString());
+            }
+
+            // Registrar atividade do usuário
+            jarvisInput.addEventListener('input', updateActivityTimestamp);
+            expertInput.addEventListener('input', updateActivityTimestamp);
+            jarvisSendBtn.addEventListener('click', updateActivityTimestamp);
+            expertSendBtn.addEventListener('click', updateActivityTimestamp);
+            
+            // Verificar se o histórico está desatualizado no carregamento
+            const historyWasCleared = checkAndCleanStaleHistory();
+            
+            // Se o histórico não foi limpo, carregar normalmente
+            if (!historyWasCleared) {
+                // Carregar histórico salvo - JARVIS
+                if (localStorage.getItem('jarvisConversationHistory')) {
+                    try {
+                        jarvisConversationHistory = JSON.parse(localStorage.getItem('jarvisConversationHistory'));
+                        
+                        // Renderizar mensagens
+                        jarvisChat.innerHTML = '<div class="system-message">Histórico de conversa carregado.</div>';
+                        
+                        jarvisConversationHistory.forEach(entry => {
+                            addMessageToChat(jarvisChat, entry.role, entry.content);
+                        });
+                    } catch (e) {
+                        console.error('Erro ao carregar histórico JARVIS:', e);
+                    }
+                }
+
+                // Carregar histórico salvo - Especialista
+                if (localStorage.getItem('expertConversationHistory')) {
+                    try {
+                        expertConversationHistory = JSON.parse(localStorage.getItem('expertConversationHistory'));
+                        
+                        // Renderizar mensagens
+                        expertChat.innerHTML = '<div class="system-message">Histórico de conversa carregado.</div>';
+                        
+                        expertConversationHistory.forEach(entry => {
+                            addMessageToChat(expertChat, entry.role, entry.content);
+                        });
+                    } catch (e) {
+                        console.error('Erro ao carregar histórico do Especialista:', e);
+                    }
+                } else if (localStorage.getItem('salesConversationHistory')) {
+                    // Migração do histórico antigo (sales → expert)
+                    try {
+                        expertConversationHistory = JSON.parse(localStorage.getItem('salesConversationHistory'));
+                        
+                        // Renderizar mensagens
+                        expertChat.innerHTML = '<div class="system-message">Histórico de conversa migrado.</div>';
+                        
+                        expertConversationHistory.forEach(entry => {
+                            addMessageToChat(expertChat, entry.role, entry.content);
+                        });
+                        
+                        // Salvar no novo formato
+                        localStorage.setItem('expertConversationHistory', JSON.stringify(expertConversationHistory));
+                        // Opcional: remover o histórico antigo
+                        localStorage.removeItem('salesConversationHistory');
+                    } catch (e) {
+                        console.error('Erro ao migrar histórico Sales para Expert:', e);
+                    }
+                }
+            }
+
+            // Verificar inatividade a cada minuto
+            setInterval(function() {
+                const now = Date.now();
+                // Se passou mais de 30 minutos desde a última atividade, verificar e limpar
+                if (now - lastActivityTimestamp > 30 * 60 * 1000) {
+                    checkAndCleanStaleHistory();
+                }
+            }, 60 * 1000); // Verificar a cada minuto
+
+            // Expert Query
+            expertSendBtn.addEventListener('click', sendExpertMessage);
+            expertInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
-                    sendSalesMessage();
+                    sendExpertMessage();
                 }
             });
 
-            // Sugestões de perguntas sobre vendas
+            // Sugestões de perguntas sobre o JARVIS
             suggestionPills.forEach(pill => {
                 pill.addEventListener('click', function() {
                     const query = this.dataset.query;
-                    salesInput.value = query;
-                    sendSalesMessage();
+                    expertInput.value = query;
+                    sendExpertMessage();
                 });
             });
 
-            function sendSalesMessage() {
-                const query = salesInput.value.trim();
+            function sendExpertMessage() {
+                const query = expertInput.value.trim();
                 
                 if (!query) return;
                 
-                addMessageToChat(salesChat, 'user', query);
-                salesInput.value = '';
-                loadingSales.classList.remove('d-none');
+                // Atualizar timestamp de atividade
+                updateActivityTimestamp();
+                
+                addMessageToChat(expertChat, 'user', query);
+                expertInput.value = '';
+                loadingExpert.classList.remove('d-none');
                 
                 // Adicionar à história de conversação
-                salesConversationHistory.push({
+                expertConversationHistory.push({
                     role: 'user',
                     content: query
                 });
                 
-                fetch(`${apiUrl}/api/sales/ask`, {
+                // Para debug - log do histórico na console
+                console.log("Enviando histórico de conversa:", JSON.stringify(expertConversationHistory));
+                
+                // Adicionar lógica de verificação de duplicação (evitar enviar a mesma pergunta duas vezes seguidas)
+                if (expertConversationHistory.length >= 2) {
+                    const lastUserMessage = expertConversationHistory
+                        .filter(m => m.role === 'user')
+                        .slice(-2, -1)[0]; // Pegar o penúltimo
+                    
+                    if (lastUserMessage && lastUserMessage.content.toLowerCase() === query.toLowerCase()) {
+                        console.log("Atenção: mesmo conteúdo de pergunta sendo enviado novamente:", query);
+                        addMessageToChat(expertChat, 'system', "Você já fez esta pergunta anteriormente. Vamos tentar com mais detalhes?");
+                    }
+                }
+                
+                // Verificar se há muitos pares de mensagens (possível problema no histórico)
+                if (expertConversationHistory.length > 14) {
+                    console.log("Atenção: Histórico de conversa muito longo com", expertConversationHistory.length, "mensagens");
+                    
+                    // Para conversas muito longas, manter apenas os últimos 7 pares (14 mensagens)
+                    if (expertConversationHistory.length > 20) {
+                        console.log("Truncando histórico de conversa muito longo");
+                        const truncatedHistory = expertConversationHistory.slice(-14);
+                        expertConversationHistory = truncatedHistory;
+                        addMessageToChat(expertChat, 'system', "Nota: Histórico de conversa muito longo foi truncado para manter apenas as mensagens mais recentes.");
+                    }
+                }
+                
+                // Salvar a história no localStorage antes da chamada da API
+                localStorage.setItem('expertConversationHistory', JSON.stringify(expertConversationHistory));
+                
+                fetch(`${apiUrl}/api/jarvis/ask`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
                         query: query,
-                        conversation_history: salesConversationHistory
+                        conversation_history: expertConversationHistory
                     })
                 })
                 .then(response => {
@@ -554,11 +691,18 @@
                     return response.json();
                 })
                 .then(data => {
-                    loadingSales.classList.add('d-none');
+                    loadingExpert.classList.add('d-none');
+                    
+                    // Para debug - log da resposta completa
+                    console.log("Resposta completa da API:", data);
+                    
+                    // Registrar atividade no recebimento da resposta
+                    updateActivityTimestamp();
                     
                     // Se for uma consulta vazia ou com erro, não fazer nada
                     if (data.empty_query || !data.response || data.response.trim() === "") {
                         console.log("Consulta vazia ou resposta inválida - ignorando");
+                        addMessageToChat(expertChat, 'system', "Não consegui processar sua pergunta. Por favor, tente novamente com mais detalhes.");
                         return;
                     }
                     
@@ -569,42 +713,57 @@
                         answer.includes("erro") || 
                         answer.length < 20) {
                         console.log("Resposta com indicação de erro ou muito curta - ignorando");
+                        addMessageToChat(expertChat, 'system', "Ocorreu um erro ao processar sua pergunta. Por favor, tente novamente.");
                         return;
                     }
                     
+                    // Verificar se não é uma resposta repetida (comparando com a última resposta do assistente)
+                    const lastAssistantResponses = expertConversationHistory
+                        .filter(m => m.role === 'assistant');
+                    
+                    if (lastAssistantResponses.length > 0) {
+                        const lastResponse = lastAssistantResponses[lastAssistantResponses.length - 1];
+                        if (lastResponse.content === answer) {
+                            console.log("Detectada resposta repetida do assistente.");
+                            addMessageToChat(expertChat, 'system', "Nota: O assistente parece estar repetindo informações. Tente fazer uma pergunta diferente ou mais específica.");
+                        }
+                    }
+                    
                     // Adicionar a mensagem ao chat
-                    addMessageToChat(salesChat, 'assistant', answer);
+                    addMessageToChat(expertChat, 'assistant', answer);
                     
                     // Adicionar à história de conversação
-                    salesConversationHistory.push({
+                    expertConversationHistory.push({
                         role: 'assistant',
                         content: answer
                     });
                     
-                    // Se tiver dados de busca, atualizar o prompt
-                    if (data.search_results) {
-                        const searchResultsText = data.search_results
-                            .map((result, index) => `Resultado ${index+1}: ${result.text}`)
-                            .join('\n\n');
-                        salesPrompt.textContent = searchResultsText;
-                    } else {
-                        salesPrompt.textContent = '';
+                    // Atualizar o prompt se disponível
+                    if (data.augmented_prompt) {
+                        expertPrompt.textContent = data.augmented_prompt;
                     }
                     
-                    // Salvar história no localStorage
-                    localStorage.setItem('salesConversationHistory', JSON.stringify(salesConversationHistory));
+                    // Mostrar info de debug sobre o estágio da conversa
+                    if (data.debug_conversation_stage) {
+                        const debugInfo = JSON.stringify(data.debug_conversation_stage, null, 2);
+                        console.log("Estágio da conversa:", debugInfo);
+                    }
+                    
+                    // Salvar história no localStorage a cada interação
+                    localStorage.setItem('expertConversationHistory', JSON.stringify(expertConversationHistory));
                 })
                 .catch(error => {
-                    loadingSales.classList.add('d-none');
-                    addMessageToChat(salesChat, 'system', `Erro: ${error.message}`);
+                    loadingExpert.classList.add('d-none');
+                    addMessageToChat(expertChat, 'system', `Erro: ${error.message}`);
+                    console.error("Erro na chamada API:", error);
                 });
             }
 
-            // Recarregar conteúdo de vendas
-            reloadSalesContent.addEventListener('click', function() {
-                reloadStatus.innerHTML = '<div class="alert alert-info">Recarregando conteúdo de vendas...</div>';
+            // Recarregar conteúdo do JARVIS
+            reloadJarvisContent.addEventListener('click', function() {
+                reloadStatus.innerHTML = '<div class="alert alert-info">Recarregando conteúdo do JARVIS...</div>';
                 
-                fetch(`${apiUrl}/api/reload-sales-content`, {
+                fetch(`${apiUrl}/api/reload-jarvis-content`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -644,49 +803,17 @@
                 localStorage.removeItem('jarvisConversationHistory');
             });
 
-            // Botões de interface - Sales
-            toggleSalesPrompt.addEventListener('click', function() {
-                salesPromptContainer.classList.toggle('d-none');
-                toggleSalesPrompt.textContent = salesPromptContainer.classList.contains('d-none') ? 'Mostrar Prompt' : 'Ocultar Prompt';
+            // Botões de interface - Especialista
+            toggleExpertPrompt.addEventListener('click', function() {
+                expertPromptContainer.classList.toggle('d-none');
+                toggleExpertPrompt.textContent = expertPromptContainer.classList.contains('d-none') ? 'Mostrar Prompt' : 'Ocultar Prompt';
             });
 
-            clearSalesChat.addEventListener('click', function() {
-                salesChat.innerHTML = '<div class="system-message">Olá! Sou o consultor de vendas do JARVIS. Como posso ajudar você hoje?</div>';
-                salesConversationHistory = [];
-                localStorage.removeItem('salesConversationHistory');
+            clearExpertChat.addEventListener('click', function() {
+                expertChat.innerHTML = '<div class="system-message">Olá! Sou o especialista do JARVIS. Como posso ajudar você hoje?</div>';
+                expertConversationHistory = [];
+                localStorage.removeItem('expertConversationHistory');
             });
-
-            // Carregar histórico salvo - JARVIS
-            if (localStorage.getItem('jarvisConversationHistory')) {
-                try {
-                    jarvisConversationHistory = JSON.parse(localStorage.getItem('jarvisConversationHistory'));
-                    
-                    // Renderizar mensagens
-                    jarvisChat.innerHTML = '<div class="system-message">Histórico de conversa carregado.</div>';
-                    
-                    jarvisConversationHistory.forEach(entry => {
-                        addMessageToChat(jarvisChat, entry.role, entry.content);
-                    });
-                } catch (e) {
-                    console.error('Erro ao carregar histórico JARVIS:', e);
-                }
-            }
-
-            // Carregar histórico salvo - Sales
-            if (localStorage.getItem('salesConversationHistory')) {
-                try {
-                    salesConversationHistory = JSON.parse(localStorage.getItem('salesConversationHistory'));
-                    
-                    // Renderizar mensagens
-                    salesChat.innerHTML = '<div class="system-message">Histórico de conversa carregado.</div>';
-                    
-                    salesConversationHistory.forEach(entry => {
-                        addMessageToChat(salesChat, entry.role, entry.content);
-                    });
-                } catch (e) {
-                    console.error('Erro ao carregar histórico Sales:', e);
-                }
-            }
 
             // Verificar status inicial
             checkStatusBtn.click();

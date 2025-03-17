@@ -5,351 +5,81 @@ import pathlib
 from datetime import datetime
 
 from langchain_core.documents import Document
-from langchain_openai import OpenAIEmbeddings
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from groq import Groq
-from langchain_text_splitters import MarkdownTextSplitter
 
 import config
-from user_data_service import UserDataService
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Conteúdo embutido do JARVIS para usar quando o arquivo não estiver disponível
-JARVIS_SALES_CONTENT = """# JARVIS: Seu Assistente Pessoal de IA
+# Conteúdo padrão para quando o arquivo não estiver disponível
+DEFAULT_JARVIS_CONTENT = """# JARVIS: Seu Assistente Pessoal de IA
 
-## O que é o JARVIS?
+O JARVIS é um assistente pessoal de produtividade alimentado por inteligência artificial, inspirado no famoso assistente do Homem de Ferro. Diferente de outros aplicativos de tarefas, o JARVIS entende linguagem natural e organiza sua vida através de uma interface intuitiva e acessível.
 
-O JARVIS é um assistente pessoal de produtividade alimentado por inteligência artificial, inspirado no famoso assistente do Homem de Ferro. Diferente de outros aplicativos de tarefas, o JARVIS entende linguagem natural e organiza sua vida através de uma interface intuitiva e acessível de qualquer dispositivo.
-
-**[➡️ Acesse agora o JARVIS: https://www.appjarvis.com.br/login](https://www.appjarvis.com.br/login)**
-
-## Como o JARVIS transforma sua produtividade
-
-### 🔍 Entendendo Linguagem Natural
-
-O JARVIS utiliza modelos avançados de IA (GPT-4o) para compreender suas tarefas exatamente como você as descreve.
-
-### 📅 Gestão Inteligente de Tarefas
-
-O sistema organiza suas tarefas automaticamente com base em datas inteligentes, recorrências e categorização.
-
-### 🔔 Notificações Que Funcionam
-
-Alertas no dispositivo, notificações via WhatsApp e priorização inteligente.
-
-### 🤖 JARVIS no WhatsApp
-
-Acesso total aos seus dados, assistente proativo, cria e gerencia tarefas.
-
-## Segurança e Privacidade
-
-Autenticação segura, armazenamento criptografado e controle total dos dados.
-
-## Comece Agora - Vagas Limitadas!
-
-**[🚀 Experimente o JARVIS GRATUITAMENTE: https://www.appjarvis.com.br/login](https://www.appjarvis.com.br/login)**
-
-## Planos Acessíveis
-
-- 7 Dias Grátis – Experimente todas as funcionalidades sem cartão de crédito
-- Plano Anual – Apenas R$ 50,00 por um ano inteiro de produtividade transformadora"""
+Com o JARVIS, você pode experimentar gratuitamente por 7 dias, sem qualquer compromisso."""
 
 
 # Módulo de gerenciamento de conteúdo
 class ContentManager:
-    """Gerencia o carregamento e processamento do conteúdo de vendas."""
+    """Gerencia o carregamento do conteúdo informativo do JARVIS."""
     
-    def __init__(self, content_text=None, chunk_size=1000, chunk_overlap=200):
+    def __init__(self, content_file_path="static/jarvis_info.txt"):
         """
         Inicializa o gerenciador de conteúdo.
         
         Args:
-            content_text (str, optional): Texto do conteúdo de vendas. Usa o conteúdo embutido se None.
-            chunk_size (int): Tamanho de cada fragmento para o text splitter.
-            chunk_overlap (int): Sobreposição entre fragmentos para o text splitter.
+            content_file_path (str): Caminho para o arquivo de texto com informações do JARVIS.
         """
-        self.content_text = content_text or JARVIS_SALES_CONTENT
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
-        self.text_splitter = MarkdownTextSplitter(
-            chunk_size=self.chunk_size, 
-            chunk_overlap=self.chunk_overlap
-        )
+        self.content_file_path = content_file_path
         
-    def load_content(self) -> List[Document]:
+    def load_content(self) -> Dict:
         """
-        Carrega e processa o conteúdo de vendas.
+        Carrega o conteúdo do arquivo de texto.
         
         Returns:
-            List[Document]: Lista de documentos processados.
+            Dict: Conteúdo formatado com metadados.
         """
         try:
-            # Processar o conteúdo como um documento
-            document = Document(page_content=self.content_text)
-            documents = [document]
+            # Tentar carregar o conteúdo do arquivo
+            with open(self.content_file_path, 'r', encoding='utf-8') as f:
+                content_text = f.read()
             
-            # Split the document into chunks
-            chunks = self.text_splitter.split_documents(documents)
+            content = {
+                "text": content_text,
+                "metadata": {
+                    "source": self.content_file_path
+                }
+            }
             
-            # Add metadata to identify sections
-            for i, doc in enumerate(chunks):
-                # Extract section from content if possible
-                content = doc.page_content
-                section = "General"
-                
-                if "## " in content:
-                    section_line = content.split("## ")[1].split("\n")[0]
-                    section = section_line.strip()
-                elif "### " in content:
-                    section_line = content.split("### ")[1].split("\n")[0]
-                    section = section_line.strip()
-                
-                doc.metadata["section"] = section
-                doc.metadata["chunk_id"] = i
-                doc.metadata["source"] = "jarvis_sales_content"
-            
-            logger.info(f"Processed content into {len(chunks)} chunks")
-            return chunks
+            logger.info(f"Loaded JARVIS info from file: {self.content_file_path} ({len(content_text)} characters)")
+            return content
         except Exception as e:
-            logger.error(f"Error processing content: {str(e)}", exc_info=True)
+            logger.error(f"Error loading content from file: {str(e)}", exc_info=True)
             # Return default content to avoid cascading errors
-            default_doc = Document(
-                page_content="JARVIS: Seu Assistente Pessoal de IA. O JARVIS é um assistente pessoal de produtividade alimentado por inteligência artificial.",
-                metadata={"section": "Geral", "chunk_id": 0, "source": "default_content"}
-            )
-            return [default_doc]
-
-
-# Módulo de embedding
-class EmbeddingService:
-    """Serviço para geração e gestão de embeddings."""
-    
-    def __init__(self, embedding_model=None):
-        """
-        Inicializa o serviço de embeddings.
-        
-        Args:
-            embedding_model: Modelo de embeddings a ser usado. Se None, usa OpenAIEmbeddings padrão.
-        """
-        self.embedding_model = embedding_model or OpenAIEmbeddings(
-            model=os.getenv("EMBEDDING_MODEL_NAME", "text-embedding-3-small")
-        )
-        # Cache para armazenar embeddings calculados
-        self.embedding_cache = {}
-        
-    def get_embeddings_for_documents(self, documents: List[Document]) -> Dict[int, List[float]]:
-        """
-        Gera embeddings para uma lista de documentos.
-        
-        Args:
-            documents (List[Document]): Lista de documentos para gerar embeddings.
-            
-        Returns:
-            Dict[int, List[float]]: Dicionário de embeddings por índice de documento.
-        """
-        embeddings = {}
-        for i, doc in enumerate(documents):
-            # Usar cache se disponível
-            cache_key = hash(doc.page_content)
-            if cache_key in self.embedding_cache:
-                embeddings[i] = self.embedding_cache[cache_key]
-                continue
-                
-            # Calcular novo embedding
-            embedding = self.embedding_model.embed_documents([doc.page_content])[0]
-            self.embedding_cache[cache_key] = embedding
-            embeddings[i] = embedding
-            
-        return embeddings
-        
-    def embed_query(self, query: str) -> List[float]:
-        """
-        Gera embedding para uma consulta.
-        
-        Args:
-            query (str): Texto da consulta.
-            
-        Returns:
-            List[float]: Embedding da consulta.
-        """
-        # Usar cache se disponível
-        cache_key = hash(query)
-        if cache_key in self.embedding_cache:
-            return self.embedding_cache[cache_key]
-            
-        # Calcular novo embedding
-        embedding = self.embedding_model.embed_query(query)
-        self.embedding_cache[cache_key] = embedding
-        return embedding
-
-
-# Módulo de busca semântica
-class SemanticSearchService:
-    """Serviço para busca semântica em documentos."""
-    
-    def __init__(self, embedding_service: EmbeddingService):
-        """
-        Inicializa o serviço de busca semântica.
-        
-        Args:
-            embedding_service (EmbeddingService): Serviço de embeddings a ser usado.
-        """
-        self.embedding_service = embedding_service
-        # Cache para resultados de busca
-        self.search_cache = {}
-        # Tamanho máximo do cache
-        self.max_cache_size = 100
-        # Contador de frequência de consultas
-        self.query_frequency = {}
-        
-    def _normalize_query(self, query: str) -> str:
-        """
-        Normaliza uma consulta para uso como chave de cache.
-        
-        Args:
-            query (str): Consulta original.
-            
-        Returns:
-            str: Consulta normalizada.
-        """
-        # Normalizar para lowercase e remover espaços extras
-        normalized = query.lower().strip()
-        # Remover pontuação comum
-        for char in ".,;:!?":
-            normalized = normalized.replace(char, "")
-        return normalized
-        
-    def _get_cache_key(self, query: str, k: int) -> str:
-        """
-        Gera uma chave de cache para uma consulta e k.
-        
-        Args:
-            query (str): Consulta normalizada.
-            k (int): Número de resultados.
-            
-        Returns:
-            str: Chave de cache.
-        """
-        return f"{query}_{k}"
-    
-    def _update_query_frequency(self, query: str):
-        """
-        Atualiza a frequência de uma consulta.
-        
-        Args:
-            query (str): Consulta normalizada.
-        """
-        if query in self.query_frequency:
-            self.query_frequency[query] += 1
-        else:
-            self.query_frequency[query] = 1
-    
-    def _clean_cache_if_needed(self):
-        """
-        Limpa o cache se ele exceder o tamanho máximo.
-        """
-        if len(self.search_cache) <= self.max_cache_size:
-            return
-            
-        # Ordenar consultas por frequência
-        sorted_queries = sorted(
-            self.query_frequency.items(), 
-            key=lambda x: x[1], 
-            reverse=True
-        )
-        
-        # Manter apenas as consultas mais frequentes
-        queries_to_keep = set([q for q, _ in sorted_queries[:self.max_cache_size // 2]])
-        
-        # Remover do cache as consultas menos frequentes
-        new_cache = {}
-        for cache_key, results in self.search_cache.items():
-            query = cache_key.split("_")[0]
-            if query in queries_to_keep:
-                new_cache[cache_key] = results
-        
-        # Atualizar o cache e o contador de frequência
-        self.search_cache = new_cache
-        self.query_frequency = {q: f for q, f in self.query_frequency.items() if q in queries_to_keep}
-        
-        logger.info(f"Cache cleaned. Kept {len(self.search_cache)} entries based on frequency.")
-    
-    def search(self, query: str, documents: List[Document], doc_embeddings: Dict[int, List[float]], k: int = 3):
-        """
-        Realiza busca semântica em documentos.
-        
-        Args:
-            query (str): Consulta para busca.
-            documents (List[Document]): Lista de documentos para buscar.
-            doc_embeddings (Dict[int, List[float]]): Dicionário de embeddings por índice de documento.
-            k (int): Número de resultados a retornar.
-            
-        Returns:
-            List[Dict]: Lista de resultados com score, texto e metadados.
-        """
-        if not documents:
-            return []
-        
-        # Normalizar query e gerar chave de cache
-        normalized_query = self._normalize_query(query)
-        cache_key = self._get_cache_key(normalized_query, k)
-        
-        # Atualizar frequência
-        self._update_query_frequency(normalized_query)
-        
-        # Verificar cache
-        if cache_key in self.search_cache:
-            logger.info(f"Cache hit for query: {query}")
-            return self.search_cache[cache_key]
-        
-        # Generate query embedding
-        query_embedding = self.embedding_service.embed_query(query)
-        
-        import numpy as np
-        from sklearn.metrics.pairwise import cosine_similarity
-        
-        # Preparar lista de embeddings a partir do dicionário
-        doc_embedding_list = [doc_embeddings[i] for i in range(len(documents))]
-        
-        # Calculate similarity
-        similarities = cosine_similarity([query_embedding], doc_embedding_list)[0]
-        
-        # Get top k results
-        top_indices = np.argsort(similarities)[-k:][::-1]
-        results = []
-        
-        for idx in top_indices:
-            results.append({
-                "score": float(similarities[idx]),
-                "text": documents[idx].page_content,
-                "metadata": documents[idx].metadata
-            })
-        
-        # Armazenar no cache
-        self.search_cache[cache_key] = results
-        
-        # Limpar cache se necessário
-        self._clean_cache_if_needed()
-        
-        return results
+            return {
+                "text": DEFAULT_JARVIS_CONTENT,
+                "metadata": {
+                    "source": "default_content"
+                }
+            }
 
 
 # Módulo de geração de prompts
 class PromptGenerator:
-    """Gerador de prompts para o chatbot de vendas."""
+    """Gerador de prompts para o assistente do JARVIS."""
     
     def __init__(self):
         """Inicializa o gerador de prompts."""
         # Variações de linguagem para tornar as respostas mais naturais
         self.greeting_variations = [
-            "Olá! Sou o Davi, gerente comercial do JARVIS.",
+            "Olá! Sou o Davi, especialista do JARVIS.",
             "Oi! Aqui é o Davi, do time JARVIS.",
             "E aí! Davi do JARVIS aqui para te ajudar.",
-            "Olá! Davi Cardoso, do JARVIS, prazer em conhecê-lo!",
-            "Oi! Davi, do time comercial do JARVIS. Como posso ajudar?"
+            "Olá! Davi, do JARVIS, prazer em conhecê-lo!",
+            "Oi! Davi, do time do JARVIS. Como posso ajudar?"
         ]
         
         self.closing_variations = [
@@ -360,15 +90,12 @@ class PromptGenerator:
             "Estou aqui para o que precisar! O que achou?"
         ]
         
-        self.urgency_phrases = [
-            "As vagas para teste gratuito são limitadas nesta semana!",
-            "Estamos com uma promoção especial até o final da semana.",
-            "O preço atual é promocional e vai aumentar em breve.",
-            "As próximas atualizações estarão disponíveis apenas para usuários já cadastrados.",
-            "Temos poucas vagas restantes para o acesso antecipado.",
-            "Esta é uma chance única de garantir o valor atual.",
-            "Muitos usuários estão aderindo agora para garantir este preço.",
-            "Isso significa menos de R$0,14 por dia - por tempo limitado!"
+        self.engagement_questions = [
+            "Você costuma usar algum aplicativo para organizar suas tarefas?",
+            "Quais são seus maiores desafios na organização do dia a dia?",
+            "O que você acha mais difícil na gestão do seu tempo?",
+            "Você já experimentou assistentes de produtividade antes?",
+            "Como você organiza suas tarefas atualmente?"
         ]
     
     def _select_random_variation(self, variations_list):
@@ -394,53 +121,82 @@ class PromptGenerator:
         Returns:
             dict: Configurações adaptadas.
         """
-        if not conversation_history:
-            # Primeira mensagem - foco em apresentação e entendimento
+        # Logging detalhado do histórico para diagnóstico de problemas
+        if conversation_history:
+            logger.info(f"Adapting to conversation stage with {len(conversation_history)} messages")
+            
+            # Calcular corretamente os pares de mensagens usuário/assistente
+            user_messages = [msg for msg in conversation_history if msg.get('role') == 'user']
+            assistant_messages = [msg for msg in conversation_history if msg.get('role') == 'assistant']
+            
+            # Verifique se o último item é uma pergunta do usuário (par incompleto)
+            is_last_user = conversation_history[-1].get('role') == 'user' if conversation_history else False
+            
+            # Calcule os pares completos (usuário + assistente)
+            msg_pairs = min(len(user_messages), len(assistant_messages))
+            if is_last_user:
+                msg_pairs = max(0, min(len(user_messages) - 1, len(assistant_messages)))
+                
+            logger.info(f"Conversation has {len(user_messages)} user messages, {len(assistant_messages)} assistant messages, {msg_pairs} complete pairs")
+        else:
+            msg_pairs = 0
+            logger.info("No conversation history, starting first interaction")
+        
+        # Estágio 0: Primeira mensagem (não há histórico)
+        if not conversation_history or msg_pairs == 0:
+            logger.info("Stage 0: First message - introduction and understanding needs")
             return {
                 "include_greeting": True,
                 "focus_on_understanding": True,
-                "include_product_details": False,
-                "include_pricing": False,
-                "include_urgency": False,
-                "include_link": False
+                "include_product_details": True,  # Incluir detalhes básicos do produto
+                "include_trial": True,  # Mencionar período de teste gratuito
+                "include_link": False,  # NÃO incluir link
+                "ask_engagement_question": True,  # Fazer UMA pergunta de engajamento
+                "ask_if_wants_link": False  # NÃO perguntar se quer o link
             }
         
-        msg_count = len(conversation_history) // 2  # Par de mensagens (user/assistant)
-        
-        if msg_count == 1:
-            # Segunda interação - entender necessidades, mencionar benefícios
+        # Estágio 1: Segunda interação - o usuário respondeu à primeira mensagem
+        elif msg_pairs == 1:
+            logger.info("Stage 1: Second interaction - showing benefits and offering link")
             return {
                 "include_greeting": False,
-                "focus_on_understanding": True,
-                "include_product_details": True,
-                "include_pricing": False,
-                "include_urgency": False,
-                "include_link": False
+                "focus_on_understanding": False,  # Menos foco em perguntas, mais em soluções
+                "include_product_details": True,  # Mostrar detalhes específicos
+                "include_trial": True,  # Reforçar período de teste gratuito
+                "include_link": True,  # Incluir o link
+                "ask_engagement_question": False,  # Não fazer mais perguntas de engajamento
+                "ask_if_wants_link": True  # Perguntar se quer o link
             }
-        elif msg_count == 2:
-            # Terceira interação - detalhar solução, mencionar preço
+        
+        # Estágio 2: Terceira interação - o usuário mostrou mais interesse
+        elif msg_pairs == 2:
+            logger.info("Stage 2: Third interaction - providing link and detailed information")
             return {
                 "include_greeting": False,
                 "focus_on_understanding": False,
                 "include_product_details": True,
-                "include_pricing": True,
-                "include_urgency": True,
-                "include_link": True
+                "include_trial": True,
+                "include_link": True,
+                "ask_engagement_question": False,
+                "ask_if_wants_link": False  # Não perguntar novamente, apenas incluir o link
             }
+        
+        # Estágio 3+: Interações posteriores - foco na conversão
         else:
-            # Interações posteriores - foco em conversão, urgência
+            logger.info(f"Stage {msg_pairs}: Later interaction - focus on conversion")
             return {
                 "include_greeting": False,
                 "focus_on_understanding": False,
                 "include_product_details": True,
-                "include_pricing": True,
-                "include_urgency": True,
-                "include_link": True
+                "include_trial": True,
+                "include_link": True,
+                "ask_engagement_question": False,
+                "ask_if_wants_link": False
             }
     
     def generate_system_prompt(self, conversation_history=None) -> str:
         """
-        Gera o prompt do sistema para o chatbot de vendas, adaptado ao estágio da conversa.
+        Gera o prompt do sistema para o assistente, adaptado ao estágio da conversa.
         
         Args:
             conversation_history (list, optional): Histórico de conversa.
@@ -454,10 +210,10 @@ class PromptGenerator:
         # Selecionar variações para uso neste prompt
         greeting = self._select_random_variation(self.greeting_variations)
         closing = self._select_random_variation(self.closing_variations)
-        urgency_phrase = self._select_random_variation(self.urgency_phrases)
+        engagement_question = self._select_random_variation(self.engagement_questions)
         
         # Construir o prompt base
-        prompt = """Você é Davi Cardoso, Gerente Comercial do JARVIS. Você deve se comunicar no estilo do WhatsApp - mensagens curtas, diretas e com boa formatação.
+        prompt = """Você é Davi, Especialista do JARVIS, um assistente pessoal de produtividade. Você deve se comunicar no estilo do WhatsApp - mensagens curtas, diretas e com boa formatação.
 
 ESTILO DE COMUNICAÇÃO NO WHATSAPP:
 - Use mensagens curtas e objetivas (2-4 parágrafos no máximo)
@@ -473,9 +229,10 @@ ESTILO DE COMUNICAÇÃO NO WHATSAPP:
             prompt += """
 
 NESTE MOMENTO DA CONVERSA:
-- FOQUE EM ENTENDER A NECESSIDADE: Faça perguntas sobre os desafios de produtividade do cliente
+- FOQUE EM ENTENDER A NECESSIDADE: Faça UMA pergunta concreta sobre os desafios de produtividade do cliente
 - DEMONSTRE EMPATIA: Valide as dificuldades mencionadas pelo cliente
-- EVITE FALAR MUITO DO PRODUTO: Apenas mencione benefícios diretamente relacionados às necessidades expressas
+- NÃO FAÇA MAIS DE UMA PERGUNTA: Isso confunde o usuário e dificulta a fluência da conversa
+- APRESENTE O PRODUTO BREVEMENTE: Mencione 2-3 benefícios principais do JARVIS
 - PERSONALIZE: Use o nome do cliente se ele o tiver mencionado"""
         else:
             prompt += """
@@ -483,55 +240,47 @@ NESTE MOMENTO DA CONVERSA:
 NESTE MOMENTO DA CONVERSA:
 - CONECTE NECESSIDADES COM SOLUÇÕES: Mostre como o JARVIS resolve os problemas mencionados
 - SEJA ESPECÍFICO: Cite funcionalidades relevantes para o caso do cliente
-- INCLUA HISTÓRIAS DE SUCESSO: Mencione brevemente como outros usuários resolveram problemas similares
-- MANTENHA O DIÁLOGO: Continue fazendo perguntas para ajustar sua resposta"""
+- INCLUA EXEMPLOS: Mencione brevemente como outros usuários resolveram problemas similares
+- OFEREÇA O LINK: Pergunte se o cliente quer experimentar o JARVIS gratuitamente"""
 
         # Adicionar o restante do prompt
         prompt += """
 
-ABORDAGEM DE VENDAS:
+ABORDAGEM DE CONVERSA:
 - PRIMEIRO ENTENDA, DEPOIS OFEREÇA: Faça perguntas para entender a necessidade antes de falar sobre o produto
 - MENOS É MAIS: Forneça apenas informações relevantes para o momento da conversa
 - FOCO NO CLIENTE: Concentre-se nos problemas e necessidades específicas do cliente
 - LINGUAGEM SIMPLES: Evite jargões técnicos complexos
 - GRADUALMENTE: Revele informações em pequenas doses, não tudo de uma vez
 
-COMPARTILHE O LINK:
-- Sempre compartilhe o link da plataforma: https://www.appjarvis.com.br/login
+COMPARTILHE O LINK (SOMENTE A PARTIR DA SEGUNDA INTERAÇÃO):
+- Compartilhe o link do JARVIS: https://www.appjarvis.com.br/login
 - Momentos ideais para compartilhar o link:
   1. Quando o cliente mostrar interesse em conhecer o produto
   2. Logo após descrever um benefício que desperte curiosidade
   3. Quando o cliente perguntar como acessar ou se cadastrar
-  4. No final da conversa como call-to-action
 - Formate o link de forma destacada com emojis: 🚀 https://www.appjarvis.com.br/login
 - Reforçe que o cadastro gratuito leva menos de 1 minuto
+- NUNCA compartilhe o link na primeira mensagem!
 
-GATILHOS DE URGÊNCIA:
-- Use a seguinte frase de urgência em algum momento da resposta: "{urgency_phrase}"
-- Mencione que as vagas para o teste gratuito são *limitadas* nesta semana
-- Destaque que o preço atual de R$50/ano é promocional e pode aumentar em breve
-- Crie senso de oportunidade: "Esta é uma chance única de..."
+PERÍODO DE TESTE GRATUITO:
+- Mencione que todos os recursos estão disponíveis gratuitamente por 7 dias
+- Destaque que não é necessário cartão de crédito para o teste
+- Enfatize que o teste é completo, sem limitações de funcionalidades
 
-SEQUÊNCIA DE INTERAÇÃO:
-1. Apresentação breve e amigável (apenas na primeira mensagem)
-2. Pergunte sobre necessidades/desafios específicos
-3. Escute atentamente antes de propor soluções
-4. Relacione as características do JARVIS com os problemas mencionados
-5. Ofereça valor antes de falar de preço
-6. Use call-to-action simples e direto
-7. Incorpore um elemento de urgência sutil e relevante ao final
-8. Compartilhe o link quando o cliente mostrar interesse
+SEQUÊNCIA DE INTERAÇÃO (IMPORTANTE):
+1. Na primeira resposta: Apresentação breve, benefícios básicos, mencionar 7 dias grátis, UMA pergunta sobre necessidades
+2. Na segunda resposta: Mostrar benefícios específicos à necessidade, oferecer o link para teste, perguntar se quer acessar
+3. Nas interações seguintes: Responder dúvidas, destacar vantagens e sempre incluir o link
 
 SOBRE INFORMAÇÕES DO PRODUTO:
 - Mencione apenas o que é relevante para a conversa atual
 - Aprofunde detalhes somente quando solicitado
 - Destaque benefícios, não recursos técnicos
-- Teste gratuito: 7 dias sem cartão de crédito (*vagas limitadas*)
-- Plano anual: R$50/ano (menos de R$4,20/mês) - *oferta por tempo limitado*
-- Destaque que o JARVIS está em fase de crescimento e os preços tendem a aumentar
-- Link do site: https://www.appjarvis.com.br/login
+- 7 dias de teste gratuito sem cartão de crédito
+- NUNCA mencione valores ou preços
 
-IMPORTANTE: Quando o cliente fizer uma pergunta, responda diretamente e de forma concisa. Não transforme cada resposta em uma apresentação completa do produto. Construa a conversa gradualmente, como um diálogo natural de WhatsApp. Insira elementos de urgência de forma natural e relevante ao contexto, evitando parecer agressivo ou desesperado."""
+IMPORTANTE: Quando o cliente fizer uma pergunta, responda diretamente e de forma concisa. Não transforme cada resposta em uma apresentação completa do produto. Construa a conversa gradualmente, como um diálogo natural de WhatsApp."""
 
         # Adicionar elementos de personalização
         if config["include_greeting"]:
@@ -540,18 +289,18 @@ IMPORTANTE: Quando o cliente fizer uma pergunta, responda diretamente e de forma
 PARA ESTA MENSAGEM:
 - Use a seguinte saudação (adaptando conforme necessário): "{greeting}"
 - Termine com: "{closing}"
-- {'Inclua esta frase de urgência em algum momento: "' + urgency_phrase + '"' if config["include_urgency"] else ''}
-- {'Compartilhe o link do site em algum momento da conversa.' if config["include_link"] else ''}"""
+- Inclua esta pergunta para iniciar o diálogo (APENAS UMA): "{engagement_question}"
+- NÃO compartilhe o link do site na primeira mensagem!"""
 
         return prompt
     
-    def generate_augmented_prompt(self, query: str, sales_context: str, conversation_history=None) -> str:
+    def generate_augmented_prompt(self, query: str, jarvis_context: str, conversation_history=None) -> str:
         """
-        Gera o prompt aumentado com contexto para o chatbot de vendas.
+        Gera o prompt aumentado com contexto para o assistente.
         
         Args:
             query (str): Consulta do usuário.
-            sales_context (str): Contexto de vendas relevante.
+            jarvis_context (str): Contexto completo sobre o JARVIS.
             conversation_history (list, optional): Histórico de conversa.
             
         Returns:
@@ -574,20 +323,25 @@ PARA ESTA MENSAGEM:
         specific_instructions = []
         
         if config["focus_on_understanding"]:
-            specific_instructions.append("- Faça perguntas para entender melhor as necessidades específicas do cliente")
+            specific_instructions.append("- Faça apenas UMA pergunta para entender as necessidades específicas do cliente")
             specific_instructions.append("- Evite listar muitas funcionalidades do produto")
         
         if config["include_product_details"]:
             specific_instructions.append("- Mencione apenas os benefícios do JARVIS que são relevantes para as necessidades expressas")
         
-        if config["include_pricing"]:
-            specific_instructions.append("- Mencione o período de teste gratuito e o valor promocional")
-        
-        if config["include_urgency"]:
-            specific_instructions.append("- Inclua um elemento de urgência para incentivar ação imediata")
+        if config["include_trial"]:
+            specific_instructions.append("- Mencione o período de teste gratuito de 7 dias sem cartão de crédito")
         
         if config["include_link"]:
             specific_instructions.append("- Compartilhe o link do site: https://www.appjarvis.com.br/login")
+        else:
+            specific_instructions.append("- NÃO compartilhe o link do site nesta mensagem")
+        
+        if config["ask_engagement_question"]:
+            specific_instructions.append("- Termine sua resposta com UMA ÚNICA pergunta sobre necessidades de organização ou produtividade")
+        
+        if config["ask_if_wants_link"]:
+            specific_instructions.append("- Pergunte se o usuário quer o link para testar o JARVIS gratuitamente por 7 dias")
         
         if client_name:
             specific_instructions.append(f"- Personalize a resposta usando o nome do cliente: {client_name}")
@@ -596,36 +350,36 @@ PARA ESTA MENSAGEM:
         instructions_text = "\n".join(specific_instructions)
         
         prompt = f"""Use o contexto abaixo sobre o JARVIS para responder à pergunta do potencial cliente
-de forma persuasiva mas conversacional, como uma conversa de WhatsApp. Seja conciso e direto.
+de forma conversacional, como uma conversa de WhatsApp. Seja conciso e direto.
 
 Instruções específicas para esta resposta:
 {instructions_text}
 
 Contexto sobre o JARVIS:
-{sales_context}
+{jarvis_context}
 
-Pergunta/objeção do cliente: {query}"""
+Pergunta do cliente: {query}"""
 
         return prompt
     
-    def generate_sales_prompt(self, query: str, sales_results: List[Dict], conversation_history=None) -> tuple:
+    def generate_jarvis_prompt(self, query: str, jarvis_content: Dict, conversation_history=None) -> tuple:
         """
-        Gera o prompt do sistema e o prompt aumentado para o chatbot de vendas.
+        Gera o prompt do sistema e o prompt aumentado para o assistente.
         
         Args:
             query (str): Consulta do usuário.
-            sales_results (List[Dict]): Resultados da busca semântica.
+            jarvis_content (Dict): Conteúdo completo sobre o JARVIS.
             conversation_history (list, optional): Histórico de conversa.
             
         Returns:
             tuple: (prompt do sistema, prompt aumentado)
         """
-        # Extract text from results
-        sales_context = "\n".join([result["text"] for result in sales_results])
+        # Extrai o texto do conteúdo
+        jarvis_context = jarvis_content["text"]
         
         # Generate prompts
         system_prompt = self.generate_system_prompt(conversation_history)
-        augmented_prompt = self.generate_augmented_prompt(query, sales_context, conversation_history)
+        augmented_prompt = self.generate_augmented_prompt(query, jarvis_context, conversation_history)
         
         return system_prompt, augmented_prompt
 
@@ -822,90 +576,96 @@ class LLMService:
 
 
 # Classe principal do serviço RAG
-class SalesRAGService:
-    """Serviço de RAG para conteúdo de vendas do JARVIS."""
+class JARVISAssistantService:
+    """Serviço de interação conversacional para informações sobre o JARVIS."""
     
-    def __init__(self, embedding_model=None, llm_client=None):
+    def __init__(self, llm_client=None):
         """
-        Inicializa o serviço de RAG para vendas.
+        Inicializa o serviço de assistente do JARVIS.
         
         Args:
-            embedding_model: Modelo de embeddings a usar.
             llm_client: Cliente LLM a usar.
         """
         # Iniciar componentes
-        self.content_manager = ContentManager(JARVIS_SALES_CONTENT)
-        self.embedding_service = EmbeddingService(embedding_model)
-        self.search_service = SemanticSearchService(self.embedding_service)
+        self.content_manager = ContentManager()
         self.prompt_generator = PromptGenerator()
         self.llm_service = LLMService(llm_client)
         
         # Configurações
-        self.top_k_results = 3  # Número padrão de resultados a retornar
         self.debug_mode = False  # Modo de debug desativado por padrão
         
-        # Carregar conteúdo de vendas
-        self.load_sales_content()
+        # Carregar conteúdo do JARVIS
+        self.jarvis_content = self.load_jarvis_content()
         
-        logger.info(f"Sales RAG Service initialized with model: {config.GROQ_MODEL_NAME}")
+        logger.info(f"JARVIS Assistant Service initialized with model: {config.GROQ_MODEL_NAME}")
     
-    def load_sales_content(self):
-        """Carrega conteúdo de vendas e gera embeddings."""
+    def load_jarvis_content(self):
+        """Carrega conteúdo completo sobre o JARVIS."""
         try:
-            # Carregar e processar conteúdo
-            self.sales_docs = self.content_manager.load_content()
+            # Carregar conteúdo completo
+            jarvis_content = self.content_manager.load_content()
             
-            # Gerar embeddings para todos os documentos
-            self.doc_embeddings = self.embedding_service.get_embeddings_for_documents(self.sales_docs)
-            
-            logger.info(f"Loaded {len(self.sales_docs)} sales content chunks with embeddings")
-            return {"status": "success", "message": f"Loaded {len(self.sales_docs)} sales content chunks"}
+            logger.info(f"Loaded JARVIS content with {len(jarvis_content['text'])} characters")
+            return jarvis_content
         except Exception as e:
-            logger.error(f"Error loading sales content: {str(e)}", exc_info=True)
+            logger.error(f"Error loading JARVIS content: {str(e)}", exc_info=True)
             # Inicializar com conteúdo padrão para evitar erros em cascata
-            self.sales_docs = [
-                Document(
-                    page_content="JARVIS: Seu Assistente Pessoal de IA. O JARVIS é um assistente pessoal de produtividade alimentado por inteligência artificial.",
-                    metadata={"section": "Geral", "chunk_id": 0, "source": "default_content"}
-                )
-            ]
-            self.doc_embeddings = {0: self.embedding_service.embed_query("JARVIS: Seu Assistente Pessoal de IA")}
-            return {"status": "error", "message": f"Error loading sales content: {str(e)}"}
+            return {
+                "text": DEFAULT_JARVIS_CONTENT,
+                "metadata": {
+                    "source": "default_content"
+                }
+            }
     
-    def search_sales_content(self, query: str, k: int = 3):
+    def load_content_from_file(self, file_path):
         """
-        Busca conteúdo de vendas relevante com base na consulta.
+        Carrega conteúdo de um arquivo texto.
         
         Args:
-            query (str): Consulta do usuário.
-            k (int): Número de resultados a retornar.
+            file_path (str): Caminho para o arquivo de texto.
             
         Returns:
-            List[Dict]: Lista de resultados relevantes.
+            Dict: Conteúdo formatado com metadados.
         """
-        return self.search_service.search(query, self.sales_docs, self.doc_embeddings, k)
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            self.jarvis_content = {
+                "text": content,
+                "metadata": {
+                    "source": file_path
+                }
+            }
+            
+            logger.info(f"Loaded content from file: {file_path} ({len(content)} characters)")
+            return self.jarvis_content
+        except Exception as e:
+            logger.error(f"Error loading content from file: {str(e)}", exc_info=True)
+            # Manter o conteúdo atual em caso de erro
+            return self.jarvis_content
     
-    def generate_sales_prompt(self, query: str, k: int = 3, conversation_history=None):
+    def generate_jarvis_prompt(self, query: str, conversation_history=None):
         """
-        Gera prompt de vendas persuasivo com base na consulta.
+        Gera prompt com base na consulta.
         
         Args:
             query (str): Consulta do usuário.
-            k (int): Número de documentos de contexto a usar.
             conversation_history (list, optional): Histórico da conversa.
             
         Returns:
             tuple: (prompt do sistema, prompt aumentado)
         """
-        # Buscar conteúdo relevante
-        sales_results = self.search_sales_content(query, k=k)
-        
-        # Gerar prompts
-        return self.prompt_generator.generate_sales_prompt(query, sales_results, conversation_history)
+        # Gerar prompts usando todo o conteúdo
+        return self.prompt_generator.generate_jarvis_prompt(
+            query=query,
+            jarvis_content=self.jarvis_content,
+            conversation_history=conversation_history
+        )
     
-    def answer_sales_query(self, query, conversation_history=None):
+    def answer_query(self, query, conversation_history=None):
         """
-        Processa uma pergunta de vendas e gera uma resposta.
+        Processa uma pergunta e gera uma resposta.
         
         Args:
             query (str): Pergunta do usuário.
@@ -919,31 +679,35 @@ class SalesRAGService:
             query = query.strip() if query else ""
             conversation_history = conversation_history or []
             
+            # Análise detalhada do histórico para debug
+            user_messages = [msg for msg in conversation_history if msg.get('role') == 'user']
+            assistant_messages = [msg for msg in conversation_history if msg.get('role') == 'assistant']
+            
+            # Calcular pares completos (usuário + assistente)
+            msg_pairs = min(len(user_messages), len(assistant_messages))
+            if conversation_history and conversation_history[-1].get('role') == 'user':
+                msg_pairs = max(0, min(len(user_messages) - 1, len(assistant_messages)))
+            
+            # Configuração baseada no estágio da conversa
+            config = self.prompt_generator._adapt_to_conversation_stage(conversation_history)
+            logger.info(f"Processing query with conversation stage: {msg_pairs} message pairs, config: {config}")
+            
             # Validação rigorosa de entrada
             if not query or len(query) < 2:
                 logger.info("Consulta vazia ou muito curta - retornando empty_query")
                 return {"response": "", "empty_query": True}
-                
-            # Verificação adicional para evitar processamento de consultas problemáticas
-            if query.lower() in ["oi", "olá", "teste", "ola", "hi", "hello"]:
-                # Para saudações simples, responder de forma leve sem pesquisa complexa
-                greeting_response = "Olá! 👋 Sou Davi, Gerente Comercial do JARVIS. Como posso ajudar você hoje?"
-                return {"response": greeting_response}
             
-            # Obtendo os dados relevantes através de pesquisa semântica
-            try:
-                search_results = self.search_service.search(
-                    query=query,
-                    documents=self.sales_docs,
-                    doc_embeddings=self.doc_embeddings,
-                    k=self.top_k_results
-                )
-                
-                if not search_results:
-                    logger.warning(f"No search results found for query: {query}")
-            except Exception as search_error:
-                logger.error(f"Erro durante a pesquisa semântica: {str(search_error)}")
-                search_results = []
+            # Verificação de repetição - verificar se a última pergunta é igual à atual
+            if user_messages and user_messages[-1].get('content', '').lower() == query.lower():
+                logger.warning(f"Usuário repetiu a mesma pergunta: '{query}'")
+            
+            # Verificação adicional para evitar processamento de consultas problemáticas
+            # Apenas para primeira interação (sem histórico)
+            if not conversation_history and query.lower() in ["oi", "olá", "teste", "ola", "hi", "hello"]:
+                # Para saudações simples, responder de forma leve sem processamento complexo
+                logger.info("Saudação simples detectada em primeira interação - usando resposta padrão")
+                greeting_response = "Olá! 👋 Sou Davi, Especialista do JARVIS. Como posso ajudar você hoje? Você costuma usar algum aplicativo para organizar suas tarefas?"
+                return {"response": greeting_response}
             
             # Detectando o nome do cliente (opcional)
             client_name = ""
@@ -953,21 +717,25 @@ class SalesRAGService:
                         name_parts = message["content"].lower().split("meu nome é")[1].strip().split()
                         if name_parts:
                             client_name = name_parts[0].capitalize()
+                            logger.info(f"Nome do cliente detectado: {client_name}")
                             break
             
             # Gerando o prompt do sistema e o prompt aumentado
-            system_prompt, augmented_prompt = self.prompt_generator.generate_sales_prompt(
+            system_prompt, augmented_prompt = self.generate_jarvis_prompt(
                 query=query,
-                sales_results=search_results,
                 conversation_history=conversation_history
             )
+            
+            # Log dos prompts gerados para debug
+            logger.info(f"System prompt length: {len(system_prompt)}, preview: {system_prompt[:100]}...")
+            logger.info(f"Augmented prompt length: {len(augmented_prompt)}, preview: {augmented_prompt[:100]}...")
             
             # Inicializar mensagens com prompt do sistema
             from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
             
             messages = [SystemMessage(content=system_prompt)]
             
-            # Adicionar histórico de conversa
+            # Adicionar histórico de conversa, verificando a consistência dos pares
             if conversation_history:
                 for entry in conversation_history:
                     if entry["role"] == "user":
@@ -990,12 +758,29 @@ class SalesRAGService:
                 logger.warning("Resposta muito curta ou vazia retornada pelo modelo")
                 return {"response": "", "empty_query": True}
             
+            # Verificar se a resposta é similar à última resposta do assistente (repetição)
+            if assistant_messages and response_content.strip() == assistant_messages[-1].get('content', '').strip():
+                logger.warning("Modelo repetiu a última resposta - tentando gerar uma nova")
+                
+                # Adicionar uma nota para forçar variação na resposta
+                messages.append(SystemMessage(content="IMPORTANTE: Forneça uma resposta diferente da anterior, mas mantenha o mesmo conteúdo informativo. Use palavras e estrutura diferentes."))
+                messages.append(HumanMessage(content=query))
+                
+                # Tentar gerar novamente com temperatura mais alta
+                response_content = self.llm_service.generate_response(
+                    messages=messages,
+                    temperature=0.9,
+                    max_tokens=1500
+                )
+            
+            # Retornar informações adicionais para debug
             return {
                 "response": response_content,
-                "search_results": search_results if self.debug_mode else None
+                "conversation_stage": msg_pairs,
+                "augmented_prompt": augmented_prompt[:500] + "..." if len(augmented_prompt) > 500 else augmented_prompt
             }
             
         except Exception as e:
-            logger.error(f"Error answering sales query: {str(e)}", exc_info=True)
+            logger.error(f"Error answering query: {str(e)}", exc_info=True)
             # Não retornar mensagens de erro para o usuário
             return {"response": "", "empty_query": True} 

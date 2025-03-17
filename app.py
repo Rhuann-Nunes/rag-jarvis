@@ -11,7 +11,7 @@ import traceback
 
 # Import RAG services
 from rag import RAGService
-from sales_rag import SalesRAGService
+from sales_rag import JARVISAssistantService
 from supabase_client import SupabaseClient
 
 # Configurar logging
@@ -36,7 +36,7 @@ app.add_middleware(
 
 # Initialize RAG services and Supabase client
 rag_service = None
-sales_rag_service = None
+jarvis_assistant = None
 supabase_client = None
 
 # Create static directory if it doesn't exist
@@ -47,9 +47,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.on_event("startup")
 async def startup_event():
-    global rag_service, sales_rag_service, supabase_client
+    global rag_service, jarvis_assistant, supabase_client
     rag_service = RAGService()
-    sales_rag_service = SalesRAGService()
+    jarvis_assistant = JARVISAssistantService()
     supabase_client = SupabaseClient()
 
 # Define models
@@ -60,10 +60,9 @@ class UserQueryRequest(BaseModel):
     conversation_history: Optional[List[Dict[str, str]]] = None
     k: Optional[int] = 3  # Number of documents to retrieve
 
-class SalesQueryRequest(BaseModel):
+class JarvisQueryRequest(BaseModel):
     query: str
     conversation_history: Optional[List[Dict[str, str]]] = None
-    k: Optional[int] = 3  # Number of documents to retrieve
 
 class QueryResponse(BaseModel):
     answer: str
@@ -237,65 +236,100 @@ async def get_user_augmented_prompt(
         logger.error(f"Erro ao gerar prompt para o usuário: {str(e)}\n{error_trace}")
         return {"status": "error", "message": str(e)}
 
-# JARVIS SALES RAG ENDPOINTS
+# JARVIS ASSISTANT ENDPOINTS
 
-@app.post("/api/sales/ask")
-async def sales_query(query: SalesQueryRequest):
+@app.post("/api/jarvis/ask")
+async def jarvis_query(query: JarvisQueryRequest):
     """
-    Endpoint para processar consultas de vendas.
+    Endpoint para processar consultas sobre o JARVIS.
     
     Args:
-        query (SalesQueryRequest): Corpo da requisição contendo a query e histórico.
+        query (JarvisQueryRequest): Corpo da requisição contendo a query e histórico.
         
     Returns:
         JSONResponse: Resposta da consulta.
     """
     try:
-        response = sales_rag_service.answer_sales_query(
+        # Log para debug do histórico de conversa
+        conversation_history = query.conversation_history or []
+        
+        # Logging detalhado do histórico para diagnóstico do problema
+        logger.info(f"Received query: '{query.query}' with conversation history length: {len(conversation_history)}")
+        for i, msg in enumerate(conversation_history):
+            logger.info(f"History message {i}: role={msg.get('role', 'unknown')}, content preview={msg.get('content', '')[:30]}...")
+        
+        # Calcular número de pares de mensagens corretamente (importante para o estágio da conversa)
+        # Um par completo consiste em uma mensagem do usuário seguida de uma resposta do assistente
+        user_messages = sum(1 for msg in conversation_history if msg.get('role') == 'user')
+        assistant_messages = sum(1 for msg in conversation_history if msg.get('role') == 'assistant')
+        msg_count = min(user_messages, assistant_messages)
+        
+        # Se o último item for do usuário, estamos em um novo par incompleto
+        if conversation_history and conversation_history[-1].get('role') == 'user':
+            msg_count = min(user_messages - 1, assistant_messages)
+        
+        logger.info(f"Processing query with: {user_messages} user messages, {assistant_messages} assistant messages, {msg_count} complete message pairs")
+        
+        # Validar rapidamente o histórico de conversa
+        if conversation_history:
+            # Verificar e corrigir mensagens inválidas
+            valid_conversation_history = []
+            for i, message in enumerate(conversation_history):
+                if "role" not in message or "content" not in message:
+                    logger.warning(f"Invalid message at position {i} in conversation history: {message}")
+                    continue
+                if message["role"] not in ["user", "assistant"]:
+                    logger.warning(f"Invalid role in message at position {i}: {message['role']}")
+                    continue
+                valid_conversation_history.append(message)
+            
+            conversation_history = valid_conversation_history
+            
+            # Verificar se os pares de mensagens são consistentes
+            if len(conversation_history) >= 2:
+                for i in range(0, len(conversation_history) - 1, 2):
+                    if i + 1 < len(conversation_history):
+                        if conversation_history[i]["role"] != "user" or conversation_history[i+1]["role"] != "assistant":
+                            logger.warning(f"Inconsistent message pairs at positions {i} and {i+1}. Roles: {conversation_history[i]['role']}, {conversation_history[i+1]['role']}")
+        
+        # Gerar resposta com histórico validado
+        response = jarvis_assistant.answer_query(
             query=query.query,
-            conversation_history=query.conversation_history
+            conversation_history=conversation_history
         )
+        
+        # Adicionar estágio da conversa e config para debug
+        config = jarvis_assistant.prompt_generator._adapt_to_conversation_stage(conversation_history)
+        response["debug_conversation_stage"] = {
+            "message_pairs": msg_count,
+            "config": config
+        }
+        
         return JSONResponse(content=response)
     except Exception as e:
-        logger.error(f"Error in sales query endpoint: {str(e)}", exc_info=True)
+        logger.error(f"Error in JARVIS assistant query endpoint: {str(e)}", exc_info=True)
+        logger.error(traceback.format_exc())
         return JSONResponse(
             status_code=500,
             content={"error": "Erro interno ao processar sua consulta. Por favor, tente novamente mais tarde."}
         )
 
-@app.post("/api/sales-search")
-async def sales_search(
-    query: str = Body(..., embed=True),
-    k: int = Body(3, embed=True)
-):
-    """Search for relevant sales content based on the query"""
-    global sales_rag_service
-    if not sales_rag_service:
-        logger.error("Sales RAG service not initialized")
-        raise HTTPException(status_code=500, detail="Sales RAG service not initialized")
+@app.post("/api/reload-jarvis-content")
+async def reload_jarvis_content():
+    """Reload the JARVIS information content from the text file"""
+    global jarvis_assistant
+    if not jarvis_assistant:
+        logger.error("JARVIS Assistant service not initialized")
+        raise HTTPException(status_code=500, detail="JARVIS Assistant service not initialized")
     
     try:
-        # Search sales content
-        results = sales_rag_service.search_sales_content(query, k=k)
-        return {"results": results}
+        # Reload JARVIS content
+        result = jarvis_assistant.load_jarvis_content()
+        return {
+            "status": "success", 
+            "message": f"JARVIS content reloaded successfully with {len(result['text'])} characters"
+        }
     except Exception as e:
         error_trace = traceback.format_exc()
-        logger.error(f"Erro ao buscar conteúdo de vendas: {str(e)}\n{error_trace}")
-        return {"status": "error", "message": str(e)}
-
-@app.post("/api/reload-sales-content")
-async def reload_sales_content():
-    """Reload the sales content from the markdown file"""
-    global sales_rag_service
-    if not sales_rag_service:
-        logger.error("Sales RAG service not initialized")
-        raise HTTPException(status_code=500, detail="Sales RAG service not initialized")
-    
-    try:
-        # Reload sales content
-        result = sales_rag_service.load_sales_content()
-        return result
-    except Exception as e:
-        error_trace = traceback.format_exc()
-        logger.error(f"Erro ao recarregar conteúdo de vendas: {str(e)}\n{error_trace}")
+        logger.error(f"Erro ao recarregar conteúdo do JARVIS: {str(e)}\n{error_trace}")
         return {"status": "error", "message": str(e)} 
